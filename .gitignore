@@ -10,4 +10,4 @@ build/
 *.db
 *.db-shm
 *.db-wal
-.devin/memory/
+.devin/
