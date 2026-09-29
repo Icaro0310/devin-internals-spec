@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-29
+
+### Added
+
+- `devin_internals.parsers` — read-only typed parsers per store:
+  - `SessionsStore` (`sessions`, `message_nodes`, `tool_call_state`,
+    `prompt_history`, `rendered_commits`, `subagent_heads`, `app_state`)
+    gated on `detect_schema_version()`; refuses known-but-unsupported
+    versions too.
+  - `AcpMessagesStore` (`meta` + `messages`) and `StateVscdbStore`
+    (`ItemTable`; `get()`/`list_prefix()`/`keys()`) gated on table shape —
+    those stores have no migration ledger.
+- `devin-inspect` CLI: `schema` (JSON contract), `sessions` (table or
+  `--json`, `--limit`), `health` (locates all three stores under a Devin data
+  dir; exit code reflects store health). All read-only.
+- `fixtures.create_devin_data_dir()` — synthetic `cli/`+`User/` tree for
+  `health` consumers/tests.
+- `docs/SCHEMA.md` — field-by-field v17 reference, ASCII ER diagram, and the
+  explicit v15/v16 DDL gap.
+- 19 new tests (parsers + CLI): 33 total.
+
+### Changed
+
+- Console script renamed `devin-internals-spec` → `devin-inspect` (the
+  scaffold name had no released behavior).
+
 ## [0.1.0] - 2026-09-29
 
 ### Added

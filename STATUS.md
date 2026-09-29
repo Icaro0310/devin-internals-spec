@@ -1,61 +1,62 @@
 # STATUS — devin-internals-spec
 
-Updated: 2026-09-29 · Milestone: **M1 (done)**
+Updated: 2026-09-29 · Milestone: **M2 (done)** · Version: 0.2.0
 
 ## Done in M1
 
-- `docs/SPEC.md` — canonical English translation of `docs/SPEC.pt-BR.md`.
-- `README.md` / `README.pt-BR.md` — real content (problem with the 17-migration
-  timeline, prior art: tokmesh/UniSessions, Devin-native extra, install
-  placeholder, limitations).
-- `src/devin_internals/fixtures.py` — deterministic generators (seed
-  `0xD317`, byte-identical output verified by test):
-  - `create_sessions_db()` — real v17 DDL (inspected read-only from the live
-    store via `sqlite_master`/`PRAGMA table_info` only), fully synthetic rows
-    for all 8 tables; `schema_version` knob for compat/unknown-version tests.
-  - `create_acp_messages_db()` — `meta` + `messages` (real DDL, synthetic rows).
-  - `create_state_vscdb()` — `ItemTable` + `user_version=1`, synthetic
-    `windsurfSpace.*` keys.
-- `src/devin_internals/schema.py` — `detect_schema_version()`:
-  `{"schema_version", "schema_compat_version", "known", "supported",
-  "verified", "min_supported": 15, "max_supported": 17}`; raises
-  `UnknownSchemaVersionError` (v>17) and `SchemaDetectionError`
-  (missing file/table/empty ledger). Opens `mode=ro`, never writes.
-- `tests/` — 14 tests, all green on Windows (Python 3.11.9, pytest 9.1.1):
-  fixtures open & populated, byte-determinism, v17 detection, loud failure on
-  v99, unsupported-but-known older versions, non-sessions DBs, no DB mutation.
-- `CHANGELOG.md` — 0.1.0 entry.
+- `docs/SPEC.md` (EN translation), real READMEs (EN/PT-BR), deterministic
+  fixtures (v17 `sessions.db` real DDL + synthetic rows, `acp-messages`,
+  `state.vscdb`), schema-version detector, 14 tests, 0.1.0 changelog.
 
-## Environment notes
+## Done in M2
 
-- `python` = 3.11.9 (has pytest); bare `pip` resolves to Python 3.14 —
-  use `python -m pip` for installs. Fixed during the session.
-- Multi-line `python -c` under this MINGW shell produces no output; use script
-  files instead (observed, worked around).
+- `src/devin_internals/parsers/` — one read-only module per store, all
+  returning frozen dataclasses:
+  - `sessions.py` — `SessionsStore` → `Session`, `MessageNode`,
+    `ToolCallState`, `PromptHistoryEntry`, `RenderedCommit`, `SubagentHead`,
+    plus `app_state()`/`counts()`. Gates on `detect_schema_version()`;
+    refuses unknown (>17) *and* known-but-unsupported (<15) versions.
+  - `acp_messages.py` — `AcpMessagesStore` → `meta()` dict + `messages()`.
+  - `state_vscdb.py` — `StateVscdbStore` → `get()`, `list_prefix()`,
+    `keys()`; UTF-8 decodes BLOB values.
+- `devin-inspect` CLI (`cli.py`, thin wrapper): `schema` (JSON contract),
+  `sessions` (table/`--json`, `--limit`), `health` (locates the three stores
+  under a data dir, reports existence/versions/counts, exit 0=OK 1=degraded).
+- `fixtures.create_devin_data_dir()` — synthetic `cli/`+`User/` tree.
+- `docs/SCHEMA.md` — field-by-field v17 doc, ASCII ER diagram, "(verified in
+  v17)"/"unstable" marks, explicit v15/v16 gap section.
+- 19 new tests → **33 total, all green** (Windows, Python 3.11.9, pytest 9.1.1).
+- Renamed console script `devin-internals-spec` → `devin-inspect`; version
+  0.2.0. Verified: `python -m devin_internals.cli schema <fixture>` prints
+  the contract; `devin-inspect.exe` resolves on PATH.
 
-## Remaining for M2 (per spec §10)
+## Environment notes (unchanged from M1)
 
-1. `sessions.db` parser per table (sessions, message_nodes, tool_call_state,
-   rendered_commits, prompt_history, subagent_heads) → typed records.
-2. v15/v16 fixtures + compat tests (DDL deltas unknown — v16/v17 were additive;
-   needs the real migration list, which is row content we did not read in M1).
-3. `acp-messages`/`state.vscdb` parsers (`meta`/`messages`, `ItemTable`).
-4. `docs/SCHEMA.md` — field-by-field doc + ER diagram ("verified in v17" marks).
-5. CLI `devin-inspect`: `schema`, `sessions`, `health` (thin wrapper, pyproject
-   script currently points at `devin-internals-spec`; decide final name).
-6. PyPI publish (`pipx install devin-internals-spec`) + CI check on Linux.
+- `python` = 3.11.9 w/ pytest; bare `pip` → Python 3.14. Always `python -m pip`.
+- exec runs under **cmd.exe**, not bash: no heredocs, no multi-line
+  `python -c`; commit messages need repeated `-m` flags.
 
-## Decisions / deviations from spec
+## Decisions / notes
 
-- Fixtures are **generated at test time** into tmp dirs, not committed as
-  binary `.db` files (`.gitignore` already excludes `*.db`; generated fixtures
-  stay deterministic cross-platform). Revisit if spec §6 "versioned in repo"
-  is meant literally.
-- Meta keys in the acp fixture are `fixture.*` placeholders — the real `meta`
-  key names are row content and were not inspected; M2 parser should treat
-  meta keys as an open set.
-- Detector treats versions 1–14 as *known but unsupported* (`supported:
-  False`), 15–17 supported, 17 verified; >17 raises.
+- acp/vscdb stores have no `refinery_schema_history` → parsers gate on
+  table shape (`meta`+`messages`, `ItemTable`) instead of a version. Documented
+  in SCHEMA.md.
+- acp `meta` key names remain `fixture.*` placeholders (real keys = row
+  content, not inspected); `meta()` treats the key space as open.
+- Fixture DBs are generated at test time (not committed binaries) —
+  `create_devin_data_dir` covers the `health` layout.
+
+## Remaining for M3 (per spec §10)
+
+1. v15/v16 fixtures + compat tests — blocked on real migration evidence
+   (ledger rows are content; need an old DB or a published migration list).
+2. `devin-inspect` on real stores — M2 verified against fixtures only.
+3. PyPI publish (`pipx install devin-internals-spec`) — name decision +
+   account needed.
+4. CI on Linux (workflow already delegates to `devin-ci` reusable workflow;
+   confirm it runs pytest matrix).
+5. Optional: `--watch`/nightly schema drift check; `session_locks/` spec;
+   read-only MCP (only if requested).
 
 ## Blockers
 
