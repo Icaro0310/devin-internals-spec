@@ -310,3 +310,40 @@ def create_state_vscdb(path: str | Path, *, seed: int = DEFAULT_SEED) -> Path:
         )
     con.close()
     return path
+
+
+def create_devin_data_dir(
+    root: str | Path,
+    *,
+    seed: int = DEFAULT_SEED,
+    n_acp_dbs: int = 2,
+) -> dict[str, Path | list[Path] | None]:
+    """Create a synthetic Devin data directory tree under ``root``.
+
+    Mirrors the real layout::
+
+        <root>/cli/sessions.db
+        <root>/User/acp-messages/<uuid>.db        (n_acp_dbs files)
+        <root>/User/globalStorage/state.vscdb
+
+    Returns the created paths so callers/tests can locate stores the same way
+    ``devin-inspect health`` does.
+    """
+    root = Path(root)
+    sessions_db = create_sessions_db(root / "cli" / "sessions.db", seed=seed)
+    acp_dbs = [
+        create_acp_messages_db(
+            root / "User" / "acp-messages" / f"{_fake_uuid(seed, f'acp-{i}')}.db",
+            seed=seed + i,
+        )
+        for i in range(n_acp_dbs)
+    ]
+    state_vscdb = create_state_vscdb(
+        root / "User" / "globalStorage" / "state.vscdb", seed=seed
+    )
+    return {
+        "root": root,
+        "sessions_db": sessions_db,
+        "acp_messages": acp_dbs,
+        "state_vscdb": state_vscdb,
+    }
