@@ -61,16 +61,23 @@ pytest
 ## Usage
 
 ```bash
-devin-internals-spec --help
+devin-inspect schema   <sessions.db>      # schema-detection contract (JSON)
+devin-inspect sessions <sessions.db>      # list sessions (id, title, cwd, …)
+devin-inspect health   <devin-data-dir>   # locate + check all three stores
 ```
 
-As a library (this is the supported interface — the CLI is a thin wrapper):
+Every subcommand is read-only and accepts `--json`. The Python library is the
+supported interface — the CLI is a thin wrapper:
 
 ```python
 from devin_internals import detect_schema_version
+from devin_internals.parsers import SessionsStore
 
 detect_schema_version("~/AppData/Roaming/devin/cli/sessions.db")
 # {"schema_version": 17, "known": True, "min_supported": 15, ...}
+
+with SessionsStore("~/AppData/Roaming/devin/cli/sessions.db") as store:
+    store.sessions()  # typed dataclasses
 ```
 
 ## Limitations
