@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-internals-spec"
-version = "0.1.0"
+version = "0.2.0"
 description = "Documented internals of Devin Desktop/CLI session stores, schema-version detection and test fixtures (unofficial)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,7 +16,7 @@ dependencies = []
 dev = ["pytest>=8"]
 
 [project.scripts]
-devin-internals-spec = "devin_internals.cli:main"
+devin-inspect = "devin_internals.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
