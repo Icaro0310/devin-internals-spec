@@ -1,0 +1,10 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    uses: Icaro0310/devin-ci/.github/workflows/python-test.yml@main
