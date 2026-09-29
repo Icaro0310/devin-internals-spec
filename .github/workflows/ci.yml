@@ -7,4 +7,6 @@ on:
 
 jobs:
   test:
-    uses: Icaro0310/devin-ci/.github/workflows/python-test.yml@main
+    uses: Icaro0310/devin-powerups/.github/workflows/python-test.yml@main
+  secrets-scan:
+    uses: Icaro0310/devin-powerups/.github/workflows/redact-check.yml@main
