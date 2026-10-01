@@ -82,6 +82,13 @@ with SessionsStore("~/AppData/Roaming/devin/cli/sessions.db") as store:
     store.sessions()  # dataclasses tipadas
 ```
 
+## Suporte de plataformas
+
+Python stdlib puro — comportamento idêntico em Windows, Linux e macOS. O
+CI corre a suite em `windows-latest` + `ubuntu-latest`; o ficheiro ou
+diretório alvo é sempre um argumento explícito, sem paths
+específicos de plataforma.
+
 ## Limitações
 
 - **Internals privados e voláteis.** Estes stores são detalhe de implementação
