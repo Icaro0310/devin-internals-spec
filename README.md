@@ -141,6 +141,27 @@ pytest
 Ground rules in [CONTRIBUTING.md](CONTRIBUTING.md): fixtures before parsers,
 small commits, bilingual docs.
 
+## When to use this
+
+- You are building a tool that reads Devin's local stores and need the documented schema, not reverse-engineering.
+- You want a schema-version gate: `detect_schema_version()` refuses loudly on unknown versions instead of misparsing.
+- You need deterministic synthetic fixtures to test parsers — no real session data required.
+- You need typed, read-only access to `sessions.db` via `SessionsStore` in Python.
+
+## When NOT to use this
+
+- You want to export or dump sessions — this documents and guards the format; `devin-history` does the exporting.
+- Your Devin release ships a schema newer than v17 — the detector refuses by design until the spec catches up.
+- You need writes — every parser and subcommand is strictly read-only.
+
+## FAQ
+
+**What data does Devin store locally, and where?** Per this spec: a versioned `sessions.db` under `cli/` (sessions, tool-call state, transcripts), one `acp-messages/*.db` per GUI session, a `state.vscdb` KV store with `windsurfSpace.*` keys, `credentials.toml`, and a `refinery_schema_history` migration ledger. The verified details live in `docs/SPEC.md`.
+
+**What happens when Devin ships a new schema version?** Tools using this library fail loudly, not silently. `detect_schema_version()` returns a contract (`known`, `min_supported`) and raises on versions it does not recognize — verified against schema v17 at time of writing.
+
+**How is this different from other sessions.db parsers?** It also documents the Desktop GUI stores (`acp-messages/*.db`, `state.vscdb`, session locks, the migration ledger) that other tools don't cover, and adds the explicit schema-version gate. The library is the supported interface; `devin-inspect` is a thin CLI wrapper.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

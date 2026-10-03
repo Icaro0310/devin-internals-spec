@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: devin-internals-spec
+authors:
+  - family-names: Galvao
+    given-names: Icaro
+url: "https://github.com/Icaro0310/devin-internals-spec"
+repository-code: "https://github.com/Icaro0310/devin-internals-spec"
+license: MIT
+abstract: "Documented internals of Devin Desktop/CLI session stores, with schema-version detection and deterministic test fixtures."
+keywords:
+  - ai-agents
+  - devin
+  - sqlite
+  - schema-versioning
+  - session-store
+  - internals
