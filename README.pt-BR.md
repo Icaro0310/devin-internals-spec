@@ -143,6 +143,27 @@ pytest
 Regras base em [CONTRIBUTING.md](CONTRIBUTING.md): fixtures antes de parsers,
 commits pequenos, docs bilingues.
 
+## Quando usar
+
+- Você está a construir uma ferramenta que lê os stores locais do Devin e precisa do schema documentado, não de engenharia reversa.
+- Você quer um gate de versão de schema: `detect_schema_version()` recusa ruidosamente em versões desconhecidas em vez de interpretar mal.
+- Você precisa de fixtures sintéticos determinísticos para testar parsers — sem dados de sessões reais.
+- Você precisa de acesso tipado e read-only ao `sessions.db` via `SessionsStore` em Python.
+
+## Quando NÃO usar
+
+- Você quer exportar ou fazer dump de sessões — isto documenta e protege o formato; quem exporta é o `devin-history`.
+- A sua versão do Devin traz um schema mais recente que v17 — o detetor recusa por design até a spec o alcançar.
+- Você precisa de escritas — cada parser e subcomando é estritamente read-only.
+
+## FAQ
+
+**Que dados o Devin guarda localmente, e onde?** Segundo esta spec: um `sessions.db` versionado sob `cli/` (sessões, estado de tool calls, transcrições), um `acp-messages/*.db` por sessão GUI, um KV store `state.vscdb` com chaves `windsurfSpace.*`, `credentials.toml`, e um ledger de migrações `refinery_schema_history`. Os detalhes verificados vivem em `docs/SPEC.md`.
+
+**O que acontece quando o Devin lança uma nova versão de schema?** Ferramentas que usam esta biblioteca falham ruidosamente, não em silêncio. `detect_schema_version()` devolve um contrato (`known`, `min_supported`) e levanta erro em versões que não reconhece — verificado contra o schema v17 à data de escrita.
+
+**Como é diferente de outros parsers de sessions.db?** Também documenta os stores do Desktop GUI (`acp-messages/*.db`, `state.vscdb`, locks de sessão, o ledger de migrações) que outras ferramentas não cobrem, e adiciona o gate explícito de versão de schema. A biblioteca é a interface suportada; `devin-inspect` é um wrapper CLI fino.
+
 ## Licença
 
 MIT — vê [LICENSE](LICENSE).
