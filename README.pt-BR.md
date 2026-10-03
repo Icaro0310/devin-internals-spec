@@ -49,8 +49,10 @@ avisa quando isso muda.*
 
 ## Instalação
 
+Requer Python ≥ 3.10 e `pipx`. **Windows (PowerShell):** instale `pipx` com `py -m pip install --user pipx`, execute `py -m pipx ensurepath` e reabra o terminal. **Linux (Debian/Ubuntu):** execute `sudo apt install pipx python3-venv` e `pipx ensurepath`; reabra o terminal. Noutras distribuições Linux, instale `pipx` pelo gestor de pacotes.
+
 ```bash
-pipx install devin-internals-spec   # quando for publicado no PyPI
+pipx install "devin-internals-spec @ git+https://github.com/Icaro0310/devin-internals-spec.git"
 ```
 
 Para desenvolvimento:
@@ -72,15 +74,34 @@ Todos os subcomandos são read-only e aceitam `--json`. A biblioteca Python é a
 interface suportada — o CLI é um wrapper fino:
 
 ```python
+import os
+import sys
+from pathlib import Path
 from devin_internals import detect_schema_version
 from devin_internals.parsers import SessionsStore
 
-detect_schema_version("~/AppData/Roaming/devin/cli/sessions.db")
+if os.name == "nt":
+    root = Path(os.environ["APPDATA"]) / "devin"
+elif sys.platform == "darwin":
+    root = Path.home() / "Library" / "Application Support" / "devin"
+else:
+    data_home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    root = data_home / "devin"
+sessions_db = root / "cli" / "sessions.db"
+
+detect_schema_version(sessions_db)
 # {"schema_version": 17, "known": True, "min_supported": 15, ...}
 
-with SessionsStore("~/AppData/Roaming/devin/cli/sessions.db") as store:
+with SessionsStore(sessions_db) as store:
     store.sessions()  # dataclasses tipadas
 ```
+
+## Funciona só com o Devin (modo Devin-only)
+
+A spec é documentação mais uma pequena biblioteca local de validação: lê as
+stores do Devin para reportar a versão do schema e bloqueia as ferramentas
+quando a versão é mais recente que o conhecido — para ruidosamente em vez de
+interpretar mal. Puramente local; nada externo é necessário.
 
 ## Suporte de plataformas
 

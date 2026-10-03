@@ -25,15 +25,15 @@ The REAL local stores exist at (inspect **read-only**, via Python `sqlite3`
 — schema only: `sqlite_master`, `PRAGMA table_info`). NEVER copy row content
 into fixtures — fixtures use **synthetic data only**. NEVER write to these DBs.
 
-- `C:\Users\Utilizador\AppData\Roaming\devin\cli\sessions.db` — tables:
+- `%APPDATA%\devin\cli\sessions.db` — tables:
   `sessions`, `message_nodes`, `tool_call_state`, `prompt_history`,
   `rendered_commits`, `subagent_heads`, `app_state`, `refinery_schema_history`
-- `C:\Users\Utilizador\AppData\Roaming\devin\User\acp-messages\*.db` —
+- `%APPDATA%\devin\User\acp-messages\*.db` —
   per-GUI-session DBs with `meta` + `messages`
-- `C:\Users\Utilizador\AppData\Roaming\devin\User\globalStorage\state.vscdb` —
+- `%APPDATA%\devin\User\globalStorage\state.vscdb` —
   key/value store (`windsurfSpace.*` keys)
 
-Python 3.11: `C:\Users\Utilizador\AppData\Local\Programs\Python\Python311\python.exe`
+Python 3.11: ``py -3.11` (or `python` on PATH)`
 (`python` should be on PATH — verify). This is Windows; mind console encoding.
 
 ## Milestone M1 scope (do exactly this, no more)
