@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="assets/banner.svg" alt="devin-internals-spec" width="100%"/>
+
+</div>
+
 # devin-internals-spec
 
 > **Unofficial community project.** Not affiliated with, endorsed by, or
