@@ -144,3 +144,8 @@ small commits, bilingual docs.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+---
+
+If this saved you debugging time, a ⭐ on the repo helps others find it.
