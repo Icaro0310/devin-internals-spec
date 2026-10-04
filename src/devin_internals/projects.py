@@ -50,7 +50,10 @@ def canonical_project_path(
         raw = raw.replace("\\", "/")
         norm = posixpath.normpath(raw).casefold()
     else:
-        norm = os.path.normpath(raw)
+        # posixpath, not os.path: a working_directory recorded on Linux
+        # must normalize identically when read on a Windows host (or when
+        # the caller pins platform="linux" for cross-platform joins)
+        norm = posixpath.normpath(raw)
     if norm == ".":
         return ""
     return norm

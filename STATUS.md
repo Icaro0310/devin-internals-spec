@@ -1,6 +1,6 @@
 # STATUS — devin-internals-spec
 
-Updated: 2026-09-29 · Milestone: **M2 (done)** · Version: 0.2.0
+Updated: 2026-10-04 · Milestone: **M3 (in progress)** · Version: 0.3.0
 
 ## Done in M1
 
@@ -29,6 +29,17 @@ Updated: 2026-09-29 · Milestone: **M2 (done)** · Version: 0.2.0
 - Renamed console script `devin-internals-spec` → `devin-inspect`; version
   0.2.0. Verified: `python -m devin_internals.cli schema <fixture>` prints
   the contract; `devin-inspect.exe` resolves on PATH.
+
+## Done in M3 (so far) — 0.3.0
+
+- `commits.py` — `commit_references()` over `tool_call_state` payloads
+  (40-hex SHAs + `/commit/<sha>` URLs only; IS-5).
+- `projects.py` — canonical project path/key shared by the ecosystem
+  (IS-4); `AcpMessagesStore.typed_meta()` typed ACP meta.
+- `contract.py` + `devin-inspect contract` — unified drift contract (F4).
+- `parsers/vscdb_scan.py` + `devin-inspect vscdb-scan` — shape-only
+  state.vscdb audit, values never read (IS-1).
+- 14 new tests → **47 total**.
 
 ## Environment notes (unchanged from M1)
 

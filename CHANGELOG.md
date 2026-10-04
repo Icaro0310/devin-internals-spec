@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
+### Added
+
+- `devin_internals.commits` — `commit_references()` extracts git commit
+  references (full 40-hex SHAs and `<host>/<owner>/<repo>/commit/<sha>`
+  URLs) from `tool_call_state` payloads. Short SHAs are deliberately
+  ignored — precision over recall, because these refs feed the knowledge
+  graph (IS-5).
+- `devin_internals.projects` — `canonical_project_path` /
+  `canonical_project_key`: one ecosystem-wide normalization so sessions,
+  graph nodes, history notes and memories join on a stable project key
+  (IS-4).
+- `devin_internals.contract` + `devin-inspect contract` — unified drift
+  contract over a Devin data dir: sessions.db schema version,
+  acp-messages `meta` shape, a usage-shape probe (verified: no cost/usage
+  columns persist in `tool_call_state`) and state.vscdb presence in one
+  read-only pass (F4).
+- `AcpMessagesStore.typed_meta()` — typed `AcpMeta` view over the
+  acp-messages `meta` table (IS-4).
+- `devin-inspect vscdb-scan` + `devin_internals.parsers.vscdb_scan` —
+  shape-only `state.vscdb` audit: a key-shape census that never reads
+  values (IS-1).
+- 14 new tests (commits/projects, fixtures, vscdb-scan): 47 total.
+
 ## [0.2.0] - 2026-09-29
 
 ### Added
