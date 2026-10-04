@@ -4,7 +4,11 @@
 and ``StateVscdbStore`` have no migration ledger and gate on table shape.
 """
 
-from devin_internals.parsers.acp_messages import AcpMessage, AcpMessagesStore
+from devin_internals.parsers.acp_messages import (
+    AcpMessage,
+    AcpMessagesStore,
+    AcpMeta,
+)
 from devin_internals.parsers.sessions import (
     MessageNode,
     PromptHistoryEntry,
@@ -18,6 +22,7 @@ from devin_internals.parsers.state_vscdb import StateVscdbStore
 
 __all__ = [
     "AcpMessage",
+    "AcpMeta",
     "AcpMessagesStore",
     "MessageNode",
     "PromptHistoryEntry",

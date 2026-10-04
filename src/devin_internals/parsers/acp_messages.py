@@ -9,8 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+import json
+
 from devin_internals.parsers._common import connect_readonly, require_tables
 from devin_internals.schema import SchemaDetectionError
+
+KNOWN_ACP_SCHEMA_VERSIONS = frozenset({1, 6})
 
 
 @dataclass(frozen=True)
@@ -18,6 +22,36 @@ class AcpMessage:
     position: int
     kind: str
     payload: str
+
+
+@dataclass(frozen=True)
+class AcpMeta:
+    """Typed view over the ``meta`` table of an acp-messages store.
+
+    ``schema_version`` is observed as TEXT ``"1"`` (legacy) or ``"6"`` in
+    the wild and is normalized to int. ``title`` comes from the ``info``
+    JSON blob when present. Unknown keys stay available via ``raw``.
+    """
+
+    schema_version: int | None
+    message_count: int | None
+    truncated: bool
+    title: str | None
+    info: dict
+    raw: dict[str, str]
+
+    @property
+    def known_schema(self) -> bool:
+        return self.schema_version in KNOWN_ACP_SCHEMA_VERSIONS
+
+
+def _to_int(value: str | None) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 class AcpMessagesStore:
@@ -51,6 +85,25 @@ class AcpMessagesStore:
             r["key"]: r["value"]
             for r in self._con.execute("SELECT key, value FROM meta ORDER BY key")
         }
+
+    def typed_meta(self) -> AcpMeta:
+        """The ``meta`` table decoded into known fields + raw fallback."""
+        raw = self.meta()
+        try:
+            info = json.loads(raw.get("info") or "{}")
+            if not isinstance(info, dict):
+                info = {}
+        except json.JSONDecodeError:
+            info = {}
+        title = info.get("title")
+        return AcpMeta(
+            schema_version=_to_int(raw.get("schema_version")),
+            message_count=_to_int(raw.get("message_count")),
+            truncated=raw.get("truncated") not in (None, "0", "false"),
+            title=title if isinstance(title, str) else None,
+            info=info,
+            raw=raw,
+        )
 
     def messages(self) -> list[AcpMessage]:
         """All messages in ``position`` order."""

@@ -89,6 +89,15 @@ devin-inspect make-fixture <out>          # deterministic synthetic stores
 split layout automatically (`~/.local/share/devin` data root +
 `~/.config/Devin` GUI root). Exit code is non-zero on any drift.
 
+`AcpMessagesStore.typed_meta()` decodes the `meta` table into a typed
+view (`schema_version` normalized to int, `message_count`, `truncated`,
+`title` from the `info` JSON blob) with `raw` as fallback.
+`devin_internals.projects` gives the canonical project key/path used to
+join sessions across tools, and `devin_internals.commits.commit_references()`
+extracts git commit SHAs (40-hex + `/commit/<sha>` URLs, with repo context)
+from `tool_call_state` payloads — short SHAs are ignored on purpose
+(precision over recall for graph joins).
+
 Every subcommand is read-only and accepts `--json`. The Python library is the
 supported interface — the CLI is a thin wrapper:
 
