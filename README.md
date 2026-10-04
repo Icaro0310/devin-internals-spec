@@ -3,6 +3,7 @@
 <img src="assets/banner.svg" alt="devin-internals-spec" width="100%"/>
 
 <a href="https://github.com/Icaro0310/devin-internals-spec/actions/workflows/tests.yml"><img src="https://github.com/Icaro0310/devin-internals-spec/actions/workflows/tests.yml/badge.svg" alt="tests"/></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-internals-spec"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-internals-spec/badge" alt="OpenSSF Scorecard"/></a>
 
 
 </div>
