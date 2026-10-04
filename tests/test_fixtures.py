@@ -109,3 +109,36 @@ def test_regeneration_overwrites_cleanly(tmp_path):
     first = db.read_bytes()
     db = create_sessions_db(tmp_path / "sessions.db", seed=DEFAULT_SEED)
     assert db.read_bytes() == first
+
+
+def test_make_fixture_contract_clean(tmp_path):
+    """make-fixture output must pass the unified contract — synthetic markers
+    are declared, not drift."""
+    from devin_internals.contract import check_contract
+    from devin_internals.cli import main
+
+    out = tmp_path / "data"
+    assert main(["make-fixture", str(out)]) == 0
+    report = check_contract(out)
+    assert report["checks"]["acp_messages"]["status"] == "ok"
+    assert report["checks"]["sessions_db"]["status"] == "ok"
+    assert report["checks"]["usage_shape"]["status"] == "ok"
+    assert report["status"] == "ok"
+
+
+def test_contract_detects_unknown_acp_version(tmp_path):
+    import sqlite3
+
+    from devin_internals.cli import main
+    from devin_internals.contract import check_contract
+
+    out = tmp_path / "data"
+    assert main(["make-fixture", str(out)]) == 0
+    db = next((out / "User" / "acp-messages").glob("*.db"))
+    con = sqlite3.connect(db)
+    con.execute("UPDATE meta SET value='99' WHERE key='schema_version'")
+    con.commit()
+    con.close()
+    report = check_contract(out)
+    assert report["checks"]["acp_messages"]["status"] == "drift"
+    assert report["status"] == "drift"

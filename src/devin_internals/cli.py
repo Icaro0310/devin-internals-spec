@@ -5,6 +5,7 @@ Subcommands (all read-only, all accept ``--json``):
 - ``schema <path>``             print the schema-detection contract as JSON
 - ``sessions <sessions.db>``    list sessions (id, title, cwd, created_at, status)
 - ``health <devin-data-dir>``   locate the three stores, report versions/counts
+- ``make-fixture <out>``        write deterministic synthetic stores for tests
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
+from devin_internals import fixtures
+from devin_internals.contract import check_contract
 from devin_internals.parsers import (
     AcpMessagesStore,
     SessionsStore,
@@ -192,6 +195,43 @@ def cmd_health(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def cmd_contract(args: argparse.Namespace) -> int:
+    report = check_contract(args.devin_data_dir)
+    _print_json(report)
+    return 0 if report["status"] == "ok" else 1
+
+
+def cmd_make_fixture(args: argparse.Namespace) -> int:
+    out = Path(args.output).expanduser()
+    created: dict[str, Any]
+    if args.kind == "dir":
+        created = fixtures.create_devin_data_dir(
+            out,
+            seed=args.seed,
+            n_acp_dbs=args.n_acp_dbs,
+            schema_version=args.schema_version,
+            n_sessions=args.n_sessions,
+        )
+    elif args.kind == "sessions":
+        created = {
+            "sessions_db": fixtures.create_sessions_db(
+                out,
+                schema_version=args.schema_version,
+                seed=args.seed,
+                n_sessions=args.n_sessions,
+            )
+        }
+    elif args.kind == "acp-messages":
+        created = {"acp_messages_db": fixtures.create_acp_messages_db(out, seed=args.seed)}
+    else:
+        created = {"state_vscdb": fixtures.create_state_vscdb(out, seed=args.seed)}
+    created["synthetic"] = True
+    created["seed"] = args.seed
+    _print_json({k: [str(p) for p in v] if isinstance(v, list) else str(v)
+                 for k, v in created.items()})
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # entry point
 # ---------------------------------------------------------------------------
@@ -221,6 +261,35 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Devin data root (contains cli/ and User/)")
     p.add_argument("--json", action="store_true", help="JSON output")
     p.set_defaults(func=cmd_health)
+
+    p = sub.add_parser(
+        "make-fixture",
+        help="write deterministic synthetic Devin stores (for tests/demos)",
+    )
+    p.add_argument("output",
+                   help="output dir (kind=dir) or file path (other kinds)")
+    p.add_argument("--kind", choices=["dir", "sessions", "acp-messages", "state-vscdb"],
+                   default="dir", help="what to generate (default: full data dir)")
+    p.add_argument("--seed", type=int, default=fixtures.DEFAULT_SEED,
+                   help="deterministic seed (default: %(default)s)")
+    p.add_argument("--schema-version", type=int,
+                   default=fixtures.LATEST_KNOWN_SCHEMA,
+                   help="sessions.db schema version; >17 exercises the "
+                        "unknown-version path (default: %(default)s)")
+    p.add_argument("--n-sessions", type=int, default=3,
+                   help="sessions to generate (default: %(default)s)")
+    p.add_argument("--n-acp-dbs", type=int, default=2,
+                   help="acp-messages DBs in kind=dir (default: %(default)s)")
+    p.set_defaults(func=cmd_make_fixture)
+
+    p = sub.add_parser(
+        "contract",
+        help="unified drift contract: schema version, acp-messages meta, "
+             "usage shape — one report for all stores",
+    )
+    p.add_argument("devin_data_dir",
+                   help="Devin data root (contains cli/ and User/)")
+    p.set_defaults(func=cmd_contract)
 
     return parser
 

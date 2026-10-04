@@ -75,7 +75,19 @@ pytest
 devin-inspect schema   <sessions.db>      # schema-detection contract (JSON)
 devin-inspect sessions <sessions.db>      # list sessions (id, title, cwd, …)
 devin-inspect health   <devin-data-dir>   # locate + check all three stores
+devin-inspect contract <devin-data-dir>   # unified drift check: schema +
+                                          # acp meta + usage shape, one report
+devin-inspect make-fixture <out>          # deterministic synthetic stores
+                                          # for tests/demos (--kind, --seed,
+                                          # --schema-version, --n-sessions)
 ```
+
+`contract` is the single drift boundary for the whole catalog: it reports
+`sessions.db` schema version, `acp-messages` meta `schema_version` (observed:
+6; 1 on legacy DBs) and unexpected meta keys, and the verified usage shape
+(no cost persisted — `num_tokens_preceding` only). On Linux it resolves the
+split layout automatically (`~/.local/share/devin` data root +
+`~/.config/Devin` GUI root). Exit code is non-zero on any drift.
 
 Every subcommand is read-only and accepts `--json`. The Python library is the
 supported interface — the CLI is a thin wrapper:

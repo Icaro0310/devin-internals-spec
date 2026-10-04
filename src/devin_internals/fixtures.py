@@ -258,19 +258,28 @@ def create_acp_messages_db(path: str | Path, *, seed: int = DEFAULT_SEED) -> Pat
 
     rng = random.Random(seed)
     sid = _fake_uuid(seed, "acp-session")
+    n_messages = rng.randint(4, 8)
     con = sqlite3.connect(path)
     with con:
         con.executescript(ACP_MESSAGES_DDL)
         con.executemany(
             "INSERT INTO meta(key, value) VALUES (?, ?)",
             [
+                ("schema_version", "6"),
+                ("info", json.dumps(
+                    {"title": f"Fixture ACP session {sid[:8]}",
+                     "configOptions": [], "availableCommands": [],
+                     "synthetic": True})),
+                ("message_count", str(n_messages)),
+                ("truncated", "0"),
                 ("fixture.session_id", sid),
                 ("fixture.created_at", str(_BASE_TS_MS)),
-                ("fixture.meta_version", "1"),
             ],
         )
-        kinds = ["fixture.user", "fixture.agent", "fixture.tool_call", "fixture.thought"]
-        for pos in range(rng.randint(4, 8)):
+        # Real kind vocabulary observed on live acp-messages DBs:
+        # user_message / agent_message / agent_thought / tool_call.
+        kinds = ["user_message", "agent_message", "agent_thought", "tool_call"]
+        for pos in range(n_messages):
             con.execute(
                 "INSERT INTO messages(position, kind, payload) VALUES (?, ?, ?)",
                 (
@@ -317,6 +326,8 @@ def create_devin_data_dir(
     *,
     seed: int = DEFAULT_SEED,
     n_acp_dbs: int = 2,
+    schema_version: int = LATEST_KNOWN_SCHEMA,
+    n_sessions: int = 3,
 ) -> dict[str, Path | list[Path] | None]:
     """Create a synthetic Devin data directory tree under ``root``.
 
@@ -330,7 +341,12 @@ def create_devin_data_dir(
     ``devin-inspect health`` does.
     """
     root = Path(root)
-    sessions_db = create_sessions_db(root / "cli" / "sessions.db", seed=seed)
+    sessions_db = create_sessions_db(
+        root / "cli" / "sessions.db",
+        schema_version=schema_version,
+        seed=seed,
+        n_sessions=n_sessions,
+    )
     acp_dbs = [
         create_acp_messages_db(
             root / "User" / "acp-messages" / f"{_fake_uuid(seed, f'acp-{i}')}.db",
