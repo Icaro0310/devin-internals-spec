@@ -131,6 +131,15 @@ CI corre a suite em `windows-latest` + `ubuntu-latest`; o ficheiro ou
 diretório alvo é sempre um argumento explícito, sem paths
 específicos de plataforma.
 
+
+### `vscdb-scan` — auditoria só de forma (IS-1)
+
+`devin-internals vscdb-scan <state.vscdb>` audita o store chave/valor da
+GUI e reporta por chave: nome, *forma* do valor (json-object/array/string/…),
+tamanho, chaves JSON de topo e flags de risco. **Valores nunca são
+impressos** — flags são heurísticas; auditoria real confirmou que
+`state.vscdb` pode conter tokens e PII. `--fail-on-flags` sai 1 para CI.
+
 ## Limitações
 
 - **Internals privados e voláteis.** Estes stores são detalhe de implementação

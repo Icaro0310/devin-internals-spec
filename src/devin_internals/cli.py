@@ -26,6 +26,7 @@ from devin_internals.parsers import (
     SessionsStore,
     StateVscdbStore,
 )
+from devin_internals.parsers.vscdb_scan import scan as vscdb_scan
 from devin_internals.schema import SchemaError, detect_schema_version
 
 
@@ -144,6 +145,23 @@ def _health_state_vscdb(path: Path) -> dict[str, Any]:
     except SchemaError as exc:
         entry["error"] = str(exc)
     return entry
+
+
+def cmd_vscdb_scan(args: argparse.Namespace) -> int:
+    with StateVscdbStore(Path(args.path).expanduser()) as store:
+        report = vscdb_scan(store)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(f"keys: {report['total_keys']} · flagged: {report['flagged_keys']}")
+        for head, n in report["key_prefixes"].items():
+            print(f"  {head}: {n}")
+        for k in report["keys"]:
+            if k.get("risk_flags"):
+                print(f"  FLAG {k['key']}  {k['value_kind']} "
+                      f"len={k['value_len']}  {','.join(k['risk_flags'])}")
+        print(f"({report['note']})")
+    return 1 if (report["flagged_keys"] and args.fail_on_flags) else 0
 
 
 def cmd_health(args: argparse.Namespace) -> int:
@@ -281,6 +299,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--n-acp-dbs", type=int, default=2,
                    help="acp-messages DBs in kind=dir (default: %(default)s)")
     p.set_defaults(func=cmd_make_fixture)
+
+    p = sub.add_parser(
+        "vscdb-scan",
+        help="shape-only audit of a state.vscdb — key names, value "
+             "types/lengths, risk flags; never prints values (IS-1)",
+    )
+    p.add_argument("path", help="path to state.vscdb")
+    p.add_argument("--json", action="store_true", help="JSON output")
+    p.add_argument("--fail-on-flags", action="store_true",
+                   help="exit 1 when any key has risk flags (CI mode)")
+    p.set_defaults(func=cmd_vscdb_scan)
 
     p = sub.add_parser(
         "contract",

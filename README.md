@@ -138,6 +138,16 @@ the suite on `windows-latest` + `ubuntu-latest`; the target file or
 directory is always an explicit argument, so there are no
 platform-specific paths.
 
+
+### `vscdb-scan` — shape-only audit (IS-1)
+
+`devin-internals vscdb-scan <state.vscdb>` audits the GUI key/value store
+and reports, per key: name, value *shape* (json-object/array/string/…),
+length, top-level JSON keys and risk flags (`sensitive-key-name`,
+`looks-like-jwt`, `large-blob`). **Values are never printed** — flags are
+heuristic and recall-biased; a real audit confirmed `state.vscdb` can
+hold auth tokens and PII. `--fail-on-flags` exits 1 for CI.
+
 ## Limitations
 
 - **Private, volatile internals.** These stores are implementation details of
