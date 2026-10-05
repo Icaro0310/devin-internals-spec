@@ -7,8 +7,9 @@ orchestrator reviews your git history and STATUS.md afterwards.
 ## Context
 
 - This repo belongs to the `devin-*` powerups ecosystem (hub: `Icaro0310/devin-powerups`).
-- Public docs are **bilingual**: `README.md` in English (canonical) +
-  `README.pt-BR.md`. License: MIT. Every README carries the unofficial notice.
+- Public docs use one shared English `README.md` plus `README.windows.md` and
+  `README.linux.md` for OS-specific setup. License: MIT; all guides carry the
+  unofficial notice.
 - Architecture rule: logic lives in `src/devin_internals/` (the library);
   the CLI is a thin wrapper.
 - TDD: **fixtures before parsers**. Deterministic fixtures (fixed seed).
@@ -39,8 +40,9 @@ Python 3.11: ``py -3.11` (or `python` on PATH)`
 ## Milestone M1 scope (do exactly this, no more)
 
 1. `docs/SPEC.md` — canonical EN translation of the spec.
-2. Fill `README.md` + `README.pt-BR.md` with real content (problem, prior art,
-   Devin-native extra, install placeholder, limitations).
+2. Keep shared purpose and usage in `README.md`; put Windows- and Linux-specific
+   install/path instructions in their respective guides. Include prior art,
+   Devin-native behavior, and limitations.
 3. `src/devin_internals/fixtures.py` — deterministic generator:
    `sessions.db` v17 (real DDL inspected read-only, synthetic rows),
    `acp-messages` fixture (`meta`+`messages`), `state.vscdb` fixture.

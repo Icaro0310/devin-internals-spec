@@ -11,10 +11,12 @@
 
 # devin-internals-spec
 
+**[Windows](README.windows.md)** · **[Linux](README.linux.md)** · English
+
 > **Unofficial community project.** Not affiliated with, endorsed by, or
 > sponsored by Cognition AI. "Devin" is a trademark of Cognition AI.
 
-**[Português (BR)](README.pt-BR.md)** · English
+**[Windows](README.windows.md)** · **[Linux](README.linux.md)** · English
 
 A documented map of Devin's local session stores — the CLI `sessions.db`, the
 Desktop GUI `acp-messages/*.db` and `state.vscdb` — plus a schema-version
@@ -61,7 +63,7 @@ disk — and it warns you when that changes.*
 Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
 
 ```bash
-pipx install "devin-internals-spec @ git+https://github.com/Icaro0310/devin-internals-spec.git"
+pipx install "devin-internals-spec==0.3.0"
 ```
 
 For development:
@@ -172,7 +174,7 @@ pytest
 ```
 
 Ground rules in [CONTRIBUTING.md](CONTRIBUTING.md): fixtures before parsers,
-small commits, bilingual docs.
+small commits, a shared README and Windows/Linux platform guides.
 
 ## When to use this
 
