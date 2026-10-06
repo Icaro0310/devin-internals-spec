@@ -175,7 +175,12 @@ lacks.
 claim is false". PARTIAL evidence degrades verdicts, never fabricates
 them (the aider-adapter contract).
 
-## 5. Adapter contract (revised — now actionable)
+## 5. Adapter contract (revised — now actionable; IMPLEMENTED)
+
+**Update 2026-10-06:** this contract is now implemented as
+`devin-qa-pack/src/devin_qa_pack/adapters/mcp.py` — `audit --source mcp
+--session <id>`; verified live: a cloud session claiming a created file
+audited `PASS`, evidence traced to the events stream.
 
 An `mcp` source produces `SourceSession` from `devin_session_events`:
 
