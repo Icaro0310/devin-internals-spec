@@ -73,7 +73,7 @@ disk — and it warns you when that changes.*
 Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
 
 ```bash
-pipx install "devin-internals-spec==0.3.0"
+pipx install "devin-internals-spec"
 ```
 
 For development:
