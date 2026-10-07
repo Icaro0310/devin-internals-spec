@@ -13,7 +13,7 @@ Personal Windows uses the extended runtime: local execution plus optional Devin 
 Install the isolated Python CLI:
 
 ```powershell
-uv tool install "devin-internals-spec==0.3.0"
+uv tool install "devin-internals-spec"
 ```
 
 ## Devin paths
