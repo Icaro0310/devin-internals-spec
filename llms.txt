@@ -24,4 +24,4 @@ Devin keeps everything on disk in undocumented SQLite databases whose schema cha
 - Not when: you want to export sessions (that's devin-history's job — this documents and guards the format, never dumps conversations); the Devin schema is newer than v17 (the detector refuses by design until the spec is updated); you need writes (strictly read-only).
 
 ## Related
-- [devin-ecosystem](https://icaro0310.github.io/): the 20+ tool ecosystem this belongs to
+- [devin-ecosystem](https://icaro0310.github.io/): the tool ecosystem this belongs to
