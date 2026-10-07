@@ -13,7 +13,7 @@ Linux uses the extended runtime: local execution plus optional Devin VM/QwenPaw 
 Install the isolated Python CLI:
 
 ```bash
-uv tool install 'devin-internals-spec==0.3.0'
+uv tool install 'devin-internals-spec'
 ```
 
 ## Devin paths
