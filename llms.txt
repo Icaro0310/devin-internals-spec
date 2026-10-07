@@ -12,7 +12,7 @@ Devin keeps everything on disk in undocumented SQLite databases whose schema cha
 - `devin-inspect schema <sessions.db>`: print the schema-detection contract (JSON)
 - `devin-inspect sessions <sessions.db>`: list sessions (id, title, cwd, …)
 - `devin-inspect health <devin-data-dir>`: locate and check all three stores
-- `pipx install "devin-internals-spec @ git+https://github.com/Icaro0310/devin-internals-spec.git"`: install
+- `uv tool install devin-internals-spec  # or: pipx install devin-internals-spec`: install
 - `pytest`: run the test suite (dev install)
 
 ## Library usage

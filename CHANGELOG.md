@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Install section now recommends pypi `uv tool install devin-internals-spec` as the primary route, with `pipx`/source installs documented as alternatives.
+
 - `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
 - Platform guides and the README install command no longer pin a release; they install the latest published version.
 

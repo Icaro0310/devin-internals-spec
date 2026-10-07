@@ -74,8 +74,11 @@ Python ≥ 3.10 required; install with `uv` (recommended) or `pipx`.
 
 ```bash
 uv tool install devin-internals-spec
+```
 
-# or with pipx (alternative)
+or with `pipx` (install it via `pip install --user pipx` or your package manager, then `pipx ensurepath`):
+
+```bash
 pipx install devin-internals-spec
 ```
 
