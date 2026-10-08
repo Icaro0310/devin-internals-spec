@@ -20,8 +20,10 @@
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
 > Track: Understand · Nature: infrastructure  
-> For: developers, maintainers  
-> Interface: CLI / Python library
+> For: Developers, Maintainers  
+> Interface: CLI / Python library  
+> Path: Developers · step 2/3 — after `devin-devkit`, before `devin-powerups`  
+> Path: Maintainers · step 3/3 — after `devin-pm`
 <!-- DEVIN-ECO:END -->
 
 
