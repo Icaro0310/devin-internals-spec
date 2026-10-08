@@ -17,6 +17,14 @@
 <a href="https://github.com/Icaro0310/devin-internals-spec/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
 
+<!-- DEVIN-ECO:BEGIN -->
+> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
+> Track: Understand · Nature: infrastructure  
+> For: developers, maintainers  
+> Interface: CLI / Python library
+<!-- DEVIN-ECO:END -->
+
+
 # devin-internals-spec
 
 **[Linux](README.linux.md)** · **[Personal Windows](README.windows.md)** · **[Corporate Windows](README.corporate-windows.md)**
