@@ -18,9 +18,9 @@
 </div>
 
 <!-- DEVIN-ECO:BEGIN -->
-> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**
-> Track: Understand · Nature: infrastructure
-> For: developers, maintainers
+> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
+> Track: Understand · Nature: infrastructure  
+> For: developers, maintainers  
 > Interface: CLI / Python library
 <!-- DEVIN-ECO:END -->
 
