@@ -5,6 +5,7 @@
 <a href="https://github.com/Icaro0310/devin-internals-spec/actions/workflows/tests.yml"><img src="https://github.com/Icaro0310/devin-internals-spec/actions/workflows/tests.yml/badge.svg" alt="tests"/></a>
 <a href="https://pypi.org/project/devin-internals-spec/"><img src="https://img.shields.io/pypi/v/devin-internals-spec" alt="PyPI"/></a>
 <a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-internals-spec"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-internals-spec/badge" alt="OpenSSF Scorecard"/></a>
+<a href="https://www.bestpractices.dev/projects/15341"><img src="https://www.bestpractices.dev/projects/15341/badge" alt="OpenSSF Best Practices"/></a>
 <a href="https://deepwiki.com/Icaro0310/devin-internals-spec"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
 
 
