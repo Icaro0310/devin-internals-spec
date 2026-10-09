@@ -11,15 +11,16 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Any
 
 from devin_internals.parsers.state_vscdb import StateVscdbStore
 
 # key-name fragments that usually mark credential material
 _SENSITIVE_KEY = re.compile(
     r"(token|secret|password|passwd|credential|apikey|api_key|auth|cookie|"
-    r"session.?id|private.?key|bearer|ssh|refresh)", re.I)
+    r"session.?id|private.?key|bearer|ssh|refresh)", re.IGNORECASE)
 # value *shapes* that usually mark credential material — matched for a
 # boolean flag only; the match itself is never returned
 _JWT_SHAPE = re.compile(r"^[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$")
@@ -72,7 +73,7 @@ def _flags(key: str, kind: str, value: str) -> list[str]:
 
 def scan_keys(store: StateVscdbStore) -> Iterator[KeyReport]:
     """Yield one shape-report per key. Values never escape this function."""
-    for key in store.keys():
+    for key in store.keys():  # noqa: SIM118 - store.keys() is a method, not dict.keys()
         raw = store.get(key)
         value = "" if raw is None else raw
         kind, json_keys = _shape(value)

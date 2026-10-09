@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import sqlite3
-
 import pytest
 
 from devin_internals import SchemaDetectionError, SchemaError, UnknownSchemaVersionError
@@ -24,7 +22,6 @@ from devin_internals.parsers import (
     SubagentHead,
     ToolCallState,
 )
-
 
 # ---------------------------------------------------------------------------
 # sessions.db

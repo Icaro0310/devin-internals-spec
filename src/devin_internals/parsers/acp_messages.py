@@ -6,10 +6,13 @@ on table shape (``meta`` + ``messages``) instead of a version number.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
 
-import json
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 from devin_internals.parsers._common import connect_readonly, require_tables
 from devin_internals.schema import SchemaDetectionError
@@ -57,7 +60,7 @@ def _to_int(value: str | None) -> int | None:
 class AcpMessagesStore:
     """Read-only handle on one ``acp-messages/*.db`` file."""
 
-    REQUIRED_TABLES = {"meta", "messages"}
+    REQUIRED_TABLES: ClassVar[set[str]] = {"meta", "messages"}
 
     def __init__(self, db_path: str | Path) -> None:
         self.path = Path(db_path).expanduser()
@@ -69,7 +72,7 @@ class AcpMessagesStore:
     def close(self) -> None:
         self._con.close()
 
-    def __enter__(self) -> "AcpMessagesStore":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

@@ -14,10 +14,11 @@ import argparse
 import json
 import sqlite3
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from devin_internals import fixtures
 from devin_internals.contract import check_contract

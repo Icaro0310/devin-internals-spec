@@ -20,7 +20,7 @@ def TestOneInput(data: bytes) -> None:
             detect_schema_version(Path(tmp.name))
         except SchemaError:
             pass
-        except Exception:
+        except Exception:  # noqa: BLE001, S110 - fuzz harness counts crashes, ignores expected errors
             pass
 
 
