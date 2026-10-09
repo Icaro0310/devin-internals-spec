@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 
 from devin_internals import SchemaDetectionError, SchemaError, UnknownSchemaVersionError
@@ -96,6 +98,63 @@ def test_sessions_store_remaining_tables(tmp_path):
     assert all(v > 0 for v in counts.values())
 
 
+def test_sessions_store_iterators_match_list_api(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", n_sessions=4)
+    with SessionsStore(db) as store:
+        # Tiny batch_size forces multiple fetchmany round-trips.
+        assert list(store.iter_sessions(batch_size=2)) == store.sessions()
+        assert list(store.iter_sessions(limit=2, batch_size=5)) == (
+            store.sessions(limit=2)
+        )
+        assert list(store.iter_message_nodes(batch_size=2)) == (
+            store.message_nodes()
+        )
+        assert list(store.iter_tool_call_state(batch_size=1)) == (
+            store.tool_call_state()
+        )
+        assert list(store.iter_prompt_history(batch_size=2)) == (
+            store.prompt_history()
+        )
+        assert list(store.iter_rendered_commits(batch_size=1)) == (
+            store.rendered_commits()
+        )
+        assert list(store.iter_subagent_heads(batch_size=1)) == (
+            store.subagent_heads()
+        )
+        sid = store.sessions()[0].id
+        assert list(store.iter_message_nodes(session_id=sid)) == (
+            store.message_nodes(session_id=sid)
+        )
+
+
+def test_sessions_store_iterators_are_lazy(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db")
+    with SessionsStore(db) as store:
+        it = store.iter_message_nodes(batch_size=1)
+        assert not isinstance(it, list)
+        first = next(it)
+        assert isinstance(first, MessageNode)
+        store.close()
+        # Closing the store kills the pending cursor: no lazy reads survive.
+        with pytest.raises(sqlite3.ProgrammingError):
+            list(it)
+
+
+def test_sessions_store_max_ids(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db")
+    with SessionsStore(db) as store:
+        max_ids = store.max_ids()
+        max_node = max(n.row_id for n in store.message_nodes())
+        max_prompt = max(p.id for p in store.prompt_history())
+        max_commit = max(r.id for r in store.rendered_commits())
+
+    assert max_ids == {
+        "message_nodes": max_node,
+        "prompt_history": max_prompt,
+        "rendered_commits": max_commit,
+    }
+
+
 def test_sessions_store_unknown_version_fails_loud(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db", schema_version=99)
     with pytest.raises(UnknownSchemaVersionError, match="version 99"):
@@ -132,6 +191,15 @@ def test_acp_messages_store(tmp_path):
         m.position for m in messages
     )
     assert counts == {"messages": len(messages), "meta": len(meta)}
+
+
+def test_acp_messages_iter_matches_list(tmp_path):
+    db = create_acp_messages_db(tmp_path / "acp.db")
+    with AcpMessagesStore(db) as store:
+        # batch_size smaller than the row count forces multiple fetches.
+        streamed = list(store.iter_messages(batch_size=2))
+        assert streamed == store.messages()
+        assert all(isinstance(m, AcpMessage) for m in streamed)
 
 
 def test_acp_messages_rejects_wrong_db(tmp_path):

@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
 - Platform guides and the README install command no longer pin a release; they install the latest published version.
+- Streaming `iter_*` counterparts for every list-returning table method:
+  `SessionsStore.iter_sessions` / `iter_message_nodes` /
+  `iter_tool_call_state` / `iter_prompt_history` / `iter_rendered_commits` /
+  `iter_subagent_heads` and `AcpMessagesStore.iter_messages`. Each accepts a
+  `batch_size` (default 2000) and yields the same frozen dataclasses via
+  `cursor.fetchmany`, so consumers with large stores (e.g. devin-search's
+  indexer) no longer materialize whole tables. The list methods are
+  unchanged and now simply drain the matching iterator.
+- `SessionsStore.max_ids()` — `MAX(pk)` per append-only table
+  (`message_nodes`, `prompt_history`, `rendered_commits`; 0 when empty) so
+  watermark-based consumers can detect pruned sources without a full scan.
 
 ## [0.3.1] - 2026-10-13
 

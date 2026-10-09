@@ -7,6 +7,7 @@ on table shape (``meta`` + ``messages``) instead of a version number.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -108,16 +109,26 @@ class AcpMessagesStore:
             raw=raw,
         )
 
+    def iter_messages(self, batch_size: int = 2000) -> Iterator[AcpMessage]:
+        """Stream all messages in ``position`` order.
+
+        Rows are fetched ``batch_size`` at a time via ``fetchmany``, so a
+        large ``messages`` table never materializes as a Python list.
+        """
+        cur = self._con.execute(
+            "SELECT position, kind, payload FROM messages ORDER BY position"
+        )
+        while batch := cur.fetchmany(batch_size):
+            for r in batch:
+                yield AcpMessage(
+                    position=r["position"],
+                    kind=r["kind"],
+                    payload=r["payload"],
+                )
+
     def messages(self) -> list[AcpMessage]:
         """All messages in ``position`` order."""
-        return [
-            AcpMessage(
-                position=r["position"], kind=r["kind"], payload=r["payload"]
-            )
-            for r in self._con.execute(
-                "SELECT position, kind, payload FROM messages ORDER BY position"
-            )
-        ]
+        return list(self.iter_messages())
 
     def counts(self) -> dict[str, int]:
         return {
