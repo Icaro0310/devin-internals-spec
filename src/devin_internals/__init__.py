@@ -15,6 +15,6 @@ __all__ = [
     "SchemaDetectionError",
     "SchemaError",
     "UnknownSchemaVersionError",
-    "detect_schema_version",
     "__version__",
+    "detect_schema_version",
 ]

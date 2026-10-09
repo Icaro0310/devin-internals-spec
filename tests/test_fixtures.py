@@ -114,8 +114,8 @@ def test_regeneration_overwrites_cleanly(tmp_path):
 def test_make_fixture_contract_clean(tmp_path):
     """make-fixture output must pass the unified contract — synthetic markers
     are declared, not drift."""
-    from devin_internals.contract import check_contract
     from devin_internals.cli import main
+    from devin_internals.contract import check_contract
 
     out = tmp_path / "data"
     assert main(["make-fixture", str(out)]) == 0

@@ -8,6 +8,10 @@ callers always get ``str`` back.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 from devin_internals.parsers._common import connect_readonly, require_tables
 from devin_internals.schema import SchemaDetectionError
@@ -18,7 +22,7 @@ WINDSURF_PREFIX = "windsurfSpace."
 class StateVscdbStore:
     """Read-only handle on a ``state.vscdb`` file."""
 
-    REQUIRED_TABLES = {"ItemTable"}
+    REQUIRED_TABLES: ClassVar[set[str]] = {"ItemTable"}
 
     def __init__(self, db_path: str | Path) -> None:
         self.path = Path(db_path).expanduser()
@@ -30,7 +34,7 @@ class StateVscdbStore:
     def close(self) -> None:
         self._con.close()
 
-    def __enter__(self) -> "StateVscdbStore":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

@@ -6,6 +6,11 @@ returns plain frozen dataclasses — callers never see raw sqlite rows.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -124,7 +129,7 @@ class SessionsStore:
     def close(self) -> None:
         self._con.close()
 
-    def __enter__(self) -> "SessionsStore":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *exc: object) -> None:

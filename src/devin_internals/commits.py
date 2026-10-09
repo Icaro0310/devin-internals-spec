@@ -18,7 +18,7 @@ Everything is pure stdlib, read-only over the parsed rows — pass in
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # 40-hex git SHA-1 (also matches SHA-256 object ids — same length, hex).
 _SHA_RE = re.compile(r"\b[0-9a-f]{40}\b")

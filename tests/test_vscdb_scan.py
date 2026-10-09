@@ -3,9 +3,9 @@ import json
 import sqlite3
 from pathlib import Path
 
-from devin_internals.parsers.state_vscdb import StateVscdbStore
-from devin_internals.parsers.vscdb_scan import scan, _shape
 from devin_internals.cli import main
+from devin_internals.parsers.state_vscdb import StateVscdbStore
+from devin_internals.parsers.vscdb_scan import _shape, scan
 
 
 def _mkdb(path: Path, items: dict[str, str]) -> Path:
