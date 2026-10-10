@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Ecosystem journey recuration recorded (six curated audiences); `For: Developers, Maintainers` kept intentionally — maintainers remain an audience even though no curated journey targets them.
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).
 
