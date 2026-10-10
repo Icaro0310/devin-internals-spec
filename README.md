@@ -23,8 +23,7 @@
 > Track: Understand · Nature: infrastructure  
 > For: Developers, Maintainers  
 > Interface: CLI / Python library  
-> Path: Developers · step 2/3 — after `devin-devkit`, before `devin-powerups`  
-> Path: Maintainers · step 3/3 — after `devin-pm`
+> Path: Developers · step 2/3 — after `devin-devkit`, before `devin-powerups`
 <!-- DEVIN-ECO:END -->
 
 
