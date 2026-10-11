@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `devin_internals.paths` — canonical store-location resolution
+  (D-2026-10-08): `default_data_dir()`/`default_config_dir()` honoring
+  `DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` and platform (injectable for tests),
+  a frozen `DevinPaths` + `resolve()` covering `sessions_db`,
+  `session_locks_dir`, `credentials_toml`, `acp_messages_dir`,
+  `state_vscdb` and `ecosystem_dir`, plus candidate-order helpers for
+  files that may live under data or config roots. `.devin-ecosystem/`
+  anchors under the Devin config dir (`~/.config/Devin` on Linux —
+  capitalized on every platform), fixing the drifted bare-`XDG_CONFIG_HOME`
+  and lowercase-`devin` fallbacks in vendored copies.
+- `devin_internals.identity` — shared machine identity:
+  `machine_id()` (`DEVIN_MACHINE_ID` or a `secrets.token_hex(8)` persisted
+  once at `<ecosystem>/machine-id`, mode `0600`, never regenerated),
+  `profile()` (`DEVIN_ECOSYSTEM_PROFILE` → `devin-profile.json` →
+  fail-closed `"corporate"`) and `provenance()`.
+- 44 new tests (paths + identity): 96 total.
+
 ### Changed
 
 - Refreshed the generated `Part of the DEVIN ecosystem` block: journey recuration v2 (six paths, zero repeats, `Local-first ops` label, `devin-bridge` in DevOps).

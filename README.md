@@ -154,6 +154,47 @@ with SessionsStore(sessions_db) as store:
     store.sessions()  # typed dataclasses
 ```
 
+## Canonical store locations (`paths` + `identity`)
+
+`devin_internals.paths` is the **canonical convention** for where Devin keeps
+its on-disk state — the reference the ecosystem's vendored `paths.py` copies
+(11+ packages) converge on (decision D-2026-10-08):
+
+| platform | data root | UI config root |
+|----------|-----------|----------------|
+| Linux    | `$XDG_DATA_HOME/devin` → `~/.local/share/devin` | `$XDG_CONFIG_HOME/Devin` → `~/.config/Devin` |
+| Windows  | `%APPDATA%\devin` | `%APPDATA%\Devin` |
+| macOS    | `~/Library/Application Support/devin` | `~/Library/Application Support/Devin` |
+
+`resolve()` returns a frozen `DevinPaths` with every store a consumer needs:
+`sessions_db`, `session_locks_dir` and `credentials_toml` under the data root;
+`acp_messages_dir` and `state_vscdb` under the config root's `User/` tree; and
+`ecosystem_dir` — `<config>/.devin-ecosystem/` — anchoring ecosystem
+bookkeeping (`machine-id`, `devin-profile.json`, `hooks.json`,
+`scheduled.json`, `plans.jsonl`, `metrics/`). `DEVIN_DATA_DIR` /
+`DEVIN_CONFIG_DIR` override the roots; candidate-order helpers cover files
+that may live under data *or* config roots, and a unified `User/`-under-data
+layout is detected automatically. `environ`/`platform` are injectable for
+tests.
+
+`devin_internals.identity` resolves the shared machine identity the same way
+every devin-* tool does: `machine_id()` returns `DEVIN_MACHINE_ID` or a random
+16-hex id persisted once at `<ecosystem>/machine-id` (mode `0600`, never
+regenerated); `profile()` resolves `DEVIN_ECOSYSTEM_PROFILE`, then
+`devin-profile.json` (canonical ecosystem location first, then the legacy
+config-root copy), failing closed to `"corporate"`.
+
+```python
+from devin_internals.paths import resolve
+from devin_internals.identity import provenance
+
+paths = resolve()          # frozen DevinPaths for this machine
+paths.sessions_db          # <data>/cli/sessions.db
+paths.ecosystem_dir        # <config>/.devin-ecosystem
+
+provenance()               # {"machine_id": ..., "profile": "corporate"|"personal"}
+```
+
 ## Works with Devin alone (Devin-only mode)
 
 The spec is documentation plus a small local validation library: it reads
