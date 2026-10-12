@@ -288,25 +288,53 @@ def test_resolve_uses_os_environ_by_default(tmp_path, monkeypatch):
 
 
 def test_sessions_db_candidates_data_first(tmp_path):
-    data, config = tmp_path / "data", tmp_path / "config"
+    data, config = tmp_path / "data", tmp_path / "Devin"
 
     cands = sessions_db_candidates(data, config)
 
     assert cands == [
         data / "cli" / "sessions.db",
         config / "cli" / "sessions.db",
-        # legacy split-Linux CLI root: lowercase sibling of the UI root
+        # legacy split-Linux CLI root: lowercase sibling of the ``Devin``
+        # UI root — probed only when the config root is named ``Devin``
         tmp_path / "devin" / "cli" / "sessions.db",
     ]
 
 
 def test_session_locks_dir_candidates_data_first(tmp_path):
-    data, config = tmp_path / "data", tmp_path / "config"
+    data, config = tmp_path / "data", tmp_path / "Devin"
 
     assert session_locks_dir_candidates(data, config) == [
         data / "cli" / "session_locks",
         config / "cli" / "session_locks",
         tmp_path / "devin" / "cli" / "session_locks",
+    ]
+
+
+def test_session_candidates_never_probe_sibling_of_custom_root(tmp_path):
+    """An explicit config root (``DEVIN_CONFIG_DIR=/work/custom``) has no
+    legacy lowercase CLI sibling — the probe must not leak into an
+    unrelated ``<parent>/devin`` directory."""
+    data, config = tmp_path / "work" / "data", tmp_path / "work" / "custom"
+
+    assert sessions_db_candidates(data, config) == [
+        data / "cli" / "sessions.db",
+        config / "cli" / "sessions.db",
+    ]
+    assert session_locks_dir_candidates(data, config) == [
+        data / "cli" / "session_locks",
+        config / "cli" / "session_locks",
+    ]
+
+
+def test_session_candidates_lowercase_root_is_not_duplicated(tmp_path):
+    """A config root that already IS the lowercase ``devin`` dir needs
+    no sibling probe — it is the second candidate itself."""
+    data, config = tmp_path / "data", tmp_path / "devin"
+
+    assert sessions_db_candidates(data, config) == [
+        data / "cli" / "sessions.db",
+        config / "cli" / "sessions.db",
     ]
 
 

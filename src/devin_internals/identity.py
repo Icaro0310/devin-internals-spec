@@ -13,15 +13,17 @@ Resolution order:
 
 - ``machine_id``: the ``DEVIN_MACHINE_ID`` env var wins; otherwise a
   random ``secrets.token_hex(8)`` persisted at
-  ``<ecosystem>/machine-id`` (mode 0600, published on first use via
-  exclusive create — concurrent losers adopt the winner's value; never
-  regenerated). Never derived from hostname, username or hardware ids.
+  ``<ecosystem>/machine-id`` (mode 0600, published on first use via an
+  atomic link-claim — the file never exists empty or partially written,
+  concurrent losers adopt the winner's value; never regenerated).
+  Never derived from hostname, username or hardware ids.
 - ``profile``: the ``DEVIN_ECOSYSTEM_PROFILE`` env var
   (``"corporate"`` | ``"personal"``) — a set-but-unrecognized value fails
   closed to ``"corporate"``; otherwise ``devin-profile.json`` (canonical
   ``<ecosystem>/devin-profile.json`` first, then the legacy
-  ``<config>/devin-profile.json`` drifted copies wrote); otherwise
-  ``"corporate"`` — fail-closed.
+  ``<config>/devin-profile.json`` drifted copies wrote, then the
+  lowercase-sibling root's copy); otherwise ``"corporate"`` —
+  fail-closed.
 """
 
 from __future__ import annotations
@@ -33,7 +35,11 @@ import sys
 import time
 from pathlib import Path
 
-from devin_internals.paths import ECOSYSTEM_DIRNAME, ecosystem_anchor_dir
+from devin_internals.paths import (
+    ECOSYSTEM_DIRNAME,
+    _legacy_cli_config_root,
+    ecosystem_anchor_dir,
+)
 
 MACHINE_ID_ENV = "DEVIN_MACHINE_ID"
 PROFILE_ENV = "DEVIN_ECOSYSTEM_PROFILE"
@@ -77,12 +83,21 @@ def profile_path_candidates(
 
     ``<ecosystem>/devin-profile.json`` is canonical; the parent entry
     covers the ``<config>/devin-profile.json`` location drifted copies
-    wrote before the convention converged.
+    wrote before the convention converged, and the lowercase ``devin``
+    sibling covers installs whose whole config root drifted lowercase
+    (``$XDG_CONFIG_HOME/devin/devin-profile.json``). The sibling probe
+    applies the same rule as the store candidates — only a root named
+    ``Devin`` has a meaningful lowercase sibling — so explicit custom
+    roots never leak the lookup sideways.
     """
     env = os.environ if environ is None else environ
     plat = sys.platform if platform is None else platform
     eco = _ecosystem_dir(env, plat, ecosystem_dir)
-    return [eco / PROFILE_FILENAME, eco.parent / PROFILE_FILENAME]
+    candidates = [eco / PROFILE_FILENAME, eco.parent / PROFILE_FILENAME]
+    legacy_root = _legacy_cli_config_root(eco.parent)
+    if legacy_root is not None:
+        candidates.append(legacy_root / PROFILE_FILENAME)
+    return list(dict.fromkeys(candidates))
 
 
 def machine_id(
@@ -118,19 +133,28 @@ def machine_id(
 def _publish_machine_id(path: Path) -> str:
     """Create ``path`` exactly once and return the persisted id.
 
-    ``O_EXCL`` creation at mode ``0600`` serializes first use across
-    processes: the loser of a creation race reads back the winner's
-    value instead of splitting provenance, and the id is never
-    world-readable, not even between create and ``fchmod``. An empty or
-    undecodable file left behind (crashed publisher, corrupt copy) is
-    reclaimed after a short wait.
+    Publication is atomic: the id is written to a private sibling temp
+    file and claimed into place with ``os.link``, which fails if
+    ``path`` already exists. ``path`` therefore never exists in an
+    empty or partially written state — a stalled publisher can never
+    have its link unlinked from under it, and the loser of a claim race
+    always reads back the winner's value instead of splitting
+    provenance. Mode ``0600`` is set at creation, so the id is never
+    world-readable. An empty or undecodable file left behind by older
+    or foreign writers (a crashed legacy publisher, a corrupt copy) is
+    still reclaimed after a short wait.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     for _attempt in range(5):
         value = secrets.token_hex(8)
+        payload = f"{value}\n".encode("ascii")
+        tmp = path.with_name(
+            f".{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+        )
         try:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        except FileExistsError:
+            _write_private_file(tmp, payload)
+            if _claim_published(tmp, path, payload):
+                return value
             winner = _wait_for_published_id(path)
             if winner:
                 return winner
@@ -138,22 +162,85 @@ def _publish_machine_id(path: Path) -> str:
                 path.unlink()  # stale/corrupt — reclaim and retry
             except OSError:
                 pass
-            continue
-        try:
-            fchmod = getattr(os, "fchmod", None)  # Unix-only
-            if fchmod is not None:
-                try:
-                    fchmod(fd, 0o600)
-                except OSError:  # filesystems without POSIX modes
-                    pass
-            os.write(fd, f"{value}\n".encode("ascii"))
         finally:
-            os.close(fd)
-        return value
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
     winner = _wait_for_published_id(path)
     if winner:
         return winner
     raise OSError(f"could not establish a stable machine-id at {path}")
+
+
+def _write_private_file(path: Path, payload: bytes) -> None:
+    """Create ``path`` at mode ``0600`` and persist every byte of
+    ``payload`` — a short ``os.write`` raises instead of leaving a
+    truncated file."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        _chmod_private(fd)
+        _write_all(fd, payload)
+    finally:
+        os.close(fd)
+
+
+def _chmod_private(fd: int) -> None:
+    """Best-effort ``fchmod 0600`` — no-op where POSIX modes don't
+    exist."""
+    fchmod = getattr(os, "fchmod", None)  # Unix-only
+    if fchmod is not None:
+        try:
+            fchmod(fd, 0o600)
+        except OSError:  # filesystems without POSIX modes
+            pass
+
+
+def _write_all(fd: int, payload: bytes) -> None:
+    """Write until ``payload`` is fully stored — ``os.write`` may
+    legally return a short byte count."""
+    view = memoryview(payload)
+    while view:
+        written = os.write(fd, view)
+        if written <= 0:
+            raise OSError("short write while publishing machine-id")
+        view = view[written:]
+
+
+def _claim_published(tmp: Path, path: Path, payload: bytes) -> bool:
+    """Move the finished id into place iff ``path`` does not exist.
+
+    A hard-link claim is atomic and never exposes an empty or partial
+    file at ``path``. Filesystems without hardlink support (or
+    platforms without ``os.link``) fall back to an ``O_EXCL`` create —
+    still a correct claim, only with the brief empty window hard links
+    avoid.
+    """
+    link = getattr(os, "link", None)
+    if link is not None:
+        try:
+            link(tmp, path)
+            return True
+        except FileExistsError:
+            return False
+        except OSError:
+            pass  # no hardlink support — exclusive-create fallback
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        return False
+    try:
+        _chmod_private(fd)
+        _write_all(fd, payload)
+    except BaseException:
+        os.close(fd)
+        try:
+            path.unlink()  # never leave a truncated id to be adopted
+        except OSError:
+            pass
+        raise
+    os.close(fd)
+    return True
 
 
 def _wait_for_published_id(path: Path) -> str:

@@ -9,6 +9,7 @@ import json
 import os
 import stat
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -94,20 +95,81 @@ def test_machine_id_file_is_private(tmp_path):
 
 
 def test_machine_id_concurrent_loser_adopts_winner(tmp_path, monkeypatch):
-    """Loser of the O_EXCL create race reads back the winner's id —
+    """Loser of the claim race reads back the winner's id —
     provenance never splits."""
     env = _env(tmp_path)
     path = _ecosystem(tmp_path) / "machine-id"
 
-    def losing_open(*args, **kwargs):
+    def losing_link(*args, **kwargs):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("0123456789abcdef\n", encoding="utf-8")
         raise FileExistsError(path)
 
-    monkeypatch.setattr(os, "open", losing_open)
+    monkeypatch.setattr(os, "link", losing_link)
 
     assert machine_id(env, "linux") == "0123456789abcdef"
     assert path.read_text(encoding="utf-8") == "0123456789abcdef\n"
+
+
+def test_machine_id_never_replaces_file_that_gains_content(
+    tmp_path, monkeypatch
+):
+    """A placeholder that gains a valid id while the loser waits is
+    adopted — never unlinked from under its publisher."""
+    env = _env(tmp_path)
+    path = _ecosystem(tmp_path) / "machine-id"
+    path.parent.mkdir(parents=True)
+    path.touch()  # foreign placeholder
+
+    def publisher_writes(*args, **kwargs):
+        path.write_text("fedcba9876543210\n", encoding="utf-8")
+
+    monkeypatch.setattr(time, "sleep", publisher_writes)
+
+    assert machine_id(env, "linux") == "fedcba9876543210"
+    assert path.read_text(encoding="utf-8") == "fedcba9876543210\n"
+
+
+def test_machine_id_publishes_without_hardlink_support(
+    tmp_path, monkeypatch
+):
+    """Filesystems without ``os.link`` still get a correct exclusive
+    claim via the ``O_EXCL`` fallback."""
+    env = _env(tmp_path)
+
+    def no_link(*args, **kwargs):
+        raise OSError("hard links unsupported")
+
+    monkeypatch.setattr(os, "link", no_link)
+
+    value = machine_id(env, "linux")
+
+    assert len(value) == 16
+    int(value, 16)
+    path = _ecosystem(tmp_path) / "machine-id"
+    assert path.read_text(encoding="utf-8") == value + "\n"
+    assert machine_id(env, "linux") == value
+
+
+def test_machine_id_short_write_persists_full_id(tmp_path, monkeypatch):
+    """A short ``os.write`` never publishes a truncated id."""
+    env = _env(tmp_path)
+    real_write = os.write
+    calls = {"n": 0}
+
+    def short_write(fd, data):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real_write(fd, bytes(data[:3]))
+        return real_write(fd, data)
+
+    monkeypatch.setattr(os, "write", short_write)
+
+    value = machine_id(env, "linux")
+
+    path = _ecosystem(tmp_path) / "machine-id"
+    assert path.read_text(encoding="utf-8") == value + "\n"
+    assert len(value) == 16
 
 
 def test_machine_id_reclaims_stale_empty_file(tmp_path):
@@ -274,6 +336,49 @@ def test_profile_undecodable_file_fails_closed(tmp_path):
     assert profile(env, "linux") == "corporate"
 
 
+def test_profile_reads_legacy_lowercase_config_root(tmp_path):
+    """A machine whose whole config root drifted lowercase keeps its
+    profile — ``~/.config/devin/devin-profile.json`` is still probed as
+    the last fallback."""
+    env = _env(tmp_path)
+    legacy = tmp_path / "xdg-config" / "devin"
+    (legacy / "User").mkdir(parents=True)
+    (legacy / "devin-profile.json").write_text(
+        json.dumps({"profile": "personal"}), encoding="utf-8"
+    )
+
+    assert profile(env, "linux") == "personal"
+
+
+def test_profile_invalid_canonical_fails_closed_over_lowercase(tmp_path):
+    """An invalid canonical file fails closed even when the lowercase
+    legacy root holds a less strict value."""
+    env = _env(tmp_path)
+    eco = _ecosystem(tmp_path)
+    eco.mkdir(parents=True)
+    (eco / "devin-profile.json").write_text("{broken", encoding="utf-8")
+    legacy = tmp_path / "xdg-config" / "devin"
+    legacy.mkdir(parents=True)
+    (legacy / "devin-profile.json").write_text(
+        json.dumps({"profile": "personal"}), encoding="utf-8"
+    )
+
+    assert profile(env, "linux") == "corporate"
+
+
+def test_profile_custom_ecosystem_dir_probes_no_sibling(tmp_path):
+    """An explicit ``ecosystem_dir`` must not leak the lookup into an
+    unrelated lowercase ``devin`` sibling of its parent."""
+    env = _env(tmp_path)
+    eco = tmp_path / "work" / "eco"
+    (tmp_path / "work" / "devin").mkdir(parents=True)
+    (tmp_path / "work" / "devin" / "devin-profile.json").write_text(
+        json.dumps({"profile": "personal"}), encoding="utf-8"
+    )
+
+    assert profile(env, "linux", ecosystem_dir=eco) == "corporate"
+
+
 def test_profile_path_candidates_order(tmp_path):
     env = _env(tmp_path)
     eco = _ecosystem(tmp_path)
@@ -281,6 +386,8 @@ def test_profile_path_candidates_order(tmp_path):
     assert profile_path_candidates(env, "linux") == [
         eco / "devin-profile.json",
         eco.parent / "devin-profile.json",
+        # lowercase-sibling legacy root — last resort
+        tmp_path / "xdg-config" / "devin" / "devin-profile.json",
     ]
 
 

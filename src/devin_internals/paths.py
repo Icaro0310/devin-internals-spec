@@ -282,18 +282,22 @@ def _dedup(paths: Iterable[Path]) -> list[Path]:
     return list(dict.fromkeys(paths))
 
 
-def _legacy_cli_config_root(config_dir: Path) -> Path:
-    """The lowercase sibling of the UI config root.
+def _legacy_cli_config_root(config_dir: Path) -> Path | None:
+    """The lowercase sibling of the canonical ``Devin`` UI config root.
 
     Split Linux installs kept CLI stores under
     ``$XDG_CONFIG_HOME/devin`` while the desktop writes its ``User/``
     tree under ``$XDG_CONFIG_HOME/Devin`` — the UI root passed as
-    ``config_dir`` is not an alias for that legacy CLI root. When
-    ``config_dir`` is already the lowercase root (or an explicit
-    override), dedup or a nonexistent path keeps the candidate list
-    honest.
+    ``config_dir`` is not an alias for that legacy CLI root. The probe
+    exists only for that drift: a root literally named ``Devin`` has a
+    meaningful lowercase ``devin`` sibling; an explicit custom root
+    (``DEVIN_CONFIG_DIR=/work/custom``) does not, so it must not leak
+    the lookup into an unrelated ``<parent>/devin`` directory.
     """
-    return Path(config_dir).parent / "devin"
+    config_dir = Path(config_dir)
+    if config_dir.name != "Devin":
+        return None
+    return config_dir.parent / "devin"
 
 
 def sessions_db_candidates(
@@ -303,13 +307,14 @@ def sessions_db_candidates(
     its lowercase sibling are legacy fallbacks (split Linux installs
     kept it under ``$XDG_CONFIG_HOME/devin``, not under the ``Devin``
     UI root)."""
-    return _dedup(
-        [
-            sessions_db_path(Path(data_dir)),
-            sessions_db_path(Path(config_dir)),
-            sessions_db_path(_legacy_cli_config_root(Path(config_dir))),
-        ]
-    )
+    candidates = [
+        sessions_db_path(Path(data_dir)),
+        sessions_db_path(Path(config_dir)),
+    ]
+    legacy = _legacy_cli_config_root(Path(config_dir))
+    if legacy is not None:
+        candidates.append(sessions_db_path(legacy))
+    return _dedup(candidates)
 
 
 def session_locks_dir_candidates(
@@ -317,13 +322,14 @@ def session_locks_dir_candidates(
 ) -> list[Path]:
     """``cli/session_locks/`` — same data-first order and lowercase-sibling
     legacy fallback as ``sessions.db`` (locks live beside it)."""
-    return _dedup(
-        [
-            session_locks_dir_path(Path(data_dir)),
-            session_locks_dir_path(Path(config_dir)),
-            session_locks_dir_path(_legacy_cli_config_root(Path(config_dir))),
-        ]
-    )
+    candidates = [
+        session_locks_dir_path(Path(data_dir)),
+        session_locks_dir_path(Path(config_dir)),
+    ]
+    legacy = _legacy_cli_config_root(Path(config_dir))
+    if legacy is not None:
+        candidates.append(session_locks_dir_path(legacy))
+    return _dedup(candidates)
 
 
 def credentials_toml_candidates(

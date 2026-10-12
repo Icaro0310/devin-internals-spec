@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once at `<ecosystem>/machine-id`, mode `0600`, never regenerated),
   `profile()` (`DEVIN_ECOSYSTEM_PROFILE` → `devin-profile.json` →
   fail-closed `"corporate"`) and `provenance()`.
-- 44 new tests (paths + identity): 96 total.
+- 64 new tests (paths + identity): 116 total.
 
 ### Changed
 

@@ -178,14 +178,19 @@ lowercase `$XDG_CONFIG_HOME/devin` CLI root on Linux — and a unified
 `User/`-under-data layout is detected per store. The ecosystem anchor is
 resolved separately from UI-store probing (`ecosystem_anchor_dir`), so a
 `User/` tree appearing later can never move an existing identity.
-`environ`/`platform` are injectable for tests.
+`environ`/`platform` are injectable for tests. Per-OS path details live
+in the platform guides: [Linux](README.linux.md),
+[Windows](README.windows.md), [Corporate
+Windows](README.corporate-windows.md).
 
 `devin_internals.identity` resolves the shared machine identity the same way
 every devin-* tool does: `machine_id()` returns `DEVIN_MACHINE_ID` or a random
-16-hex id published once at `<ecosystem>/machine-id` (mode `0600`, exclusive
-create — concurrent losers adopt the winner, never regenerated); `profile()`
+16-hex id published once at `<ecosystem>/machine-id` (mode `0600`, atomic
+link-claim — the file never exists empty or partially written, concurrent
+losers adopt the winner, never regenerated); `profile()`
 resolves `DEVIN_ECOSYSTEM_PROFILE`, then `devin-profile.json` (canonical
-ecosystem location first, then the legacy config-root copy), failing closed
+ecosystem location first, then the legacy config-root copies, lowercase
+sibling included), failing closed
 to `"corporate"` whenever a resolved value is invalid.
 
 ```python
