@@ -198,7 +198,9 @@ to `"corporate"` whenever a resolved value is invalid.
 from devin_internals.paths import resolve
 from devin_internals.identity import provenance
 
-paths = resolve()          # frozen DevinPaths for this machine
+paths = resolve()          # frozen DevinPaths for this machine —
+                           # the one API that picks platform conventions;
+                           # pass environ=/platform= to resolve for another
 paths.sessions_db          # <data>/cli/sessions.db
 paths.ecosystem_dir        # <config>/.devin-ecosystem
 
