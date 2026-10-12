@@ -13,10 +13,10 @@ Resolution order:
 
 - ``machine_id``: the ``DEVIN_MACHINE_ID`` env var wins; otherwise a
   random ``secrets.token_hex(8)`` persisted at
-  ``<ecosystem>/machine-id`` (mode 0600, published on first use via an
-  atomic link-claim — the file never exists empty or partially written,
-  concurrent losers adopt the winner's value; never regenerated).
-  Never derived from hostname, username or hardware ids.
+  ``<ecosystem>/machine-id`` (mode 0600, published on first use via a
+  tmp file + ``os.link`` claim — ``O_EXCL`` fallback where hard links
+  are unavailable — concurrent losers adopt the winner's value; never
+  regenerated). Never derived from hostname, username or hardware ids.
 - ``profile``: the ``DEVIN_ECOSYSTEM_PROFILE`` env var
   (``"corporate"`` | ``"personal"``) — a set-but-unrecognized value fails
   closed to ``"corporate"``; otherwise ``devin-profile.json`` (canonical
@@ -135,14 +135,17 @@ def _publish_machine_id(path: Path) -> str:
 
     Publication is atomic: the id is written to a private sibling temp
     file and claimed into place with ``os.link``, which fails if
-    ``path`` already exists. ``path`` therefore never exists in an
-    empty or partially written state — a stalled publisher can never
-    have its link unlinked from under it, and the loser of a claim race
-    always reads back the winner's value instead of splitting
-    provenance. Mode ``0600`` is set at creation, so the id is never
-    world-readable. An empty or undecodable file left behind by older
-    or foreign writers (a crashed legacy publisher, a corrupt copy) is
-    still reclaimed after a short wait.
+    ``path`` already exists. Where hard links are supported ``path``
+    therefore never exists in an empty or partially written state — a
+    stalled publisher can never have its link unlinked from under it,
+    and the loser of a claim race always reads back the winner's value
+    instead of splitting provenance (filesystems without hard-link
+    support fall back to an ``O_EXCL`` create, which keeps the correct
+    claim semantics but briefly exposes an empty file, as documented in
+    :func:`_claim_published`). Mode ``0600`` is set at creation, so the
+    id is never world-readable. An empty or undecodable file left
+    behind by older or foreign writers (a crashed legacy publisher, a
+    corrupt copy) is still reclaimed after a short wait.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     for _attempt in range(5):

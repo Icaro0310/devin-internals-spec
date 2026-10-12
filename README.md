@@ -186,8 +186,9 @@ Windows](README.corporate-windows.md).
 `devin_internals.identity` resolves the shared machine identity the same way
 every devin-* tool does: `machine_id()` returns `DEVIN_MACHINE_ID` or a random
 16-hex id published once at `<ecosystem>/machine-id` (mode `0600`, atomic
-link-claim — the file never exists empty or partially written, concurrent
-losers adopt the winner, never regenerated); `profile()`
+link-claim — on filesystems with hard-link support the file never exists
+empty or partially written; concurrent losers adopt the winner, never
+regenerated); `profile()`
 resolves `DEVIN_ECOSYSTEM_PROFILE`, then `devin-profile.json` (canonical
 ecosystem location first, then the legacy config-root copies, lowercase
 sibling included), failing closed
