@@ -358,7 +358,7 @@ def test_profile_invalid_canonical_fails_closed_over_lowercase(tmp_path):
     eco.mkdir(parents=True)
     (eco / "devin-profile.json").write_text("{broken", encoding="utf-8")
     legacy = tmp_path / "xdg-config" / "devin"
-    legacy.mkdir(parents=True)
+    legacy.mkdir(parents=True, exist_ok=True)  # aliases Devin on a case-folding FS
     (legacy / "devin-profile.json").write_text(
         json.dumps({"profile": "personal"}), encoding="utf-8"
     )
@@ -383,12 +383,17 @@ def test_profile_path_candidates_order(tmp_path):
     env = _env(tmp_path)
     eco = _ecosystem(tmp_path)
 
-    assert profile_path_candidates(env, "linux") == [
+    expected = [
         eco / "devin-profile.json",
         eco.parent / "devin-profile.json",
-        # lowercase-sibling legacy root — last resort
-        tmp_path / "xdg-config" / "devin" / "devin-profile.json",
     ]
+    # lowercase-sibling legacy root — last resort. On Windows the
+    # spellings alias (WindowsPath folds case) so it dedups away.
+    if sys.platform != "win32":
+        expected.append(
+            tmp_path / "xdg-config" / "devin" / "devin-profile.json"
+        )
+    assert profile_path_candidates(env, "linux") == expected
 
 
 # ---------------------------------------------------------------------------

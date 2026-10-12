@@ -154,7 +154,9 @@ def test_linux_config_canonical_beats_lowercase(tmp_path):
     env = _linux_env(tmp_path)
     canonical = tmp_path / "xdg-config" / "Devin"
     (canonical / "User").mkdir(parents=True)
-    (tmp_path / "xdg-config" / "devin" / "User").mkdir(parents=True)
+    (tmp_path / "xdg-config" / "devin" / "User").mkdir(
+        parents=True, exist_ok=True
+    )  # Devin/devin alias on a case-folding FS (Windows CI)
 
     assert default_config_dir(env, "linux") == canonical
 
@@ -292,23 +294,29 @@ def test_sessions_db_candidates_data_first(tmp_path):
 
     cands = sessions_db_candidates(data, config)
 
-    assert cands == [
+    expected = [
         data / "cli" / "sessions.db",
         config / "cli" / "sessions.db",
-        # legacy split-Linux CLI root: lowercase sibling of the ``Devin``
-        # UI root — probed only when the config root is named ``Devin``
-        tmp_path / "devin" / "cli" / "sessions.db",
     ]
+    # legacy split-Linux CLI root: lowercase sibling of the ``Devin``
+    # UI root — probed only when the config root is named ``Devin``.
+    # On Windows the spellings alias (WindowsPath folds case), so the
+    # dedup keeps a single entry.
+    if sys.platform != "win32":
+        expected.append(tmp_path / "devin" / "cli" / "sessions.db")
+    assert cands == expected
 
 
 def test_session_locks_dir_candidates_data_first(tmp_path):
     data, config = tmp_path / "data", tmp_path / "Devin"
 
-    assert session_locks_dir_candidates(data, config) == [
+    expected = [
         data / "cli" / "session_locks",
         config / "cli" / "session_locks",
-        tmp_path / "devin" / "cli" / "session_locks",
     ]
+    if sys.platform != "win32":
+        expected.append(tmp_path / "devin" / "cli" / "session_locks")
+    assert session_locks_dir_candidates(data, config) == expected
 
 
 def test_session_candidates_never_probe_sibling_of_custom_root(tmp_path):
@@ -406,7 +414,7 @@ def test_real_machine_layout(tmp_path):
     data = tmp_path / "xdg-data" / "devin"
     (electron / "User" / "globalStorage").mkdir(parents=True)
     (electron / ".devin-ecosystem").mkdir(parents=True)
-    cli_cfg.mkdir(parents=True)
+    cli_cfg.mkdir(parents=True, exist_ok=True)  # aliases electron root on a case-folding FS
     (data / "cli").mkdir(parents=True)
     (data / "cli" / "sessions.db").touch()
 
@@ -473,7 +481,10 @@ def test_ecosystem_anchor_ignores_late_lowercase_user_tree(tmp_path):
 
     assert before == after == tmp_path / "xdg-config" / "Devin"
     # config_dir DOES follow User/ — the anchor is deliberately separate.
-    assert default_config_dir(env, "linux").name == "devin"
+    # On a case-folding host FS ``devin/User`` also satisfies the
+    # ``Devin/User`` probe, which runs first and keeps its spelling.
+    expected = "devin" if sys.platform != "win32" else "Devin"
+    assert default_config_dir(env, "linux").name == expected
 
 
 def test_ecosystem_anchor_reads_existing_lowercase_ecosystem(tmp_path):
