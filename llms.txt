@@ -18,6 +18,8 @@ Devin keeps everything on disk in undocumented SQLite databases whose schema cha
 ## Library usage
 - `from devin_internals import detect_schema_version` → `detect_schema_version(path)` returns `{schema_version, known, min_supported, ...}` and raises on unknown versions
 - `from devin_internals.parsers import SessionsStore` → `with SessionsStore(path) as s: s.sessions()` yields typed dataclasses
+- `from devin_internals.paths import resolve` → `resolve()` returns a frozen `DevinPaths` with the canonical data/config roots, every store path and `<config>/.devin-ecosystem` (`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` override)
+- `from devin_internals.identity import machine_id, profile, provenance` → stable persisted machine-id + fail-closed `"corporate"|"personal"` profile under `.devin-ecosystem/`
 
 ## When to use / when not
 - Use when: building tools that read Devin's local stores; you need a schema-version gate that refuses loudly on unknown versions; you need deterministic synthetic fixtures to test parsers without real data.
