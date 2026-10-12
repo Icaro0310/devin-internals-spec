@@ -11,6 +11,8 @@ import stat
 import sys
 from pathlib import Path
 
+import pytest
+
 from devin_internals.identity import (
     DEFAULT_PROFILE,
     machine_id,
@@ -89,6 +91,72 @@ def test_machine_id_file_is_private(tmp_path):
 
     mode = stat.S_IMODE((_ecosystem(tmp_path) / "machine-id").stat().st_mode)
     assert mode == 0o600
+
+
+def test_machine_id_concurrent_loser_adopts_winner(tmp_path, monkeypatch):
+    """Loser of the O_EXCL create race reads back the winner's id —
+    provenance never splits."""
+    env = _env(tmp_path)
+    path = _ecosystem(tmp_path) / "machine-id"
+
+    def losing_open(*args, **kwargs):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("0123456789abcdef\n", encoding="utf-8")
+        raise FileExistsError(path)
+
+    monkeypatch.setattr(os, "open", losing_open)
+
+    assert machine_id(env, "linux") == "0123456789abcdef"
+    assert path.read_text(encoding="utf-8") == "0123456789abcdef\n"
+
+
+def test_machine_id_reclaims_stale_empty_file(tmp_path):
+    """An empty file (crashed publisher) is reclaimed, not adopted."""
+    env = _env(tmp_path)
+    path = _ecosystem(tmp_path) / "machine-id"
+    path.parent.mkdir(parents=True)
+    path.touch()
+
+    value = machine_id(env, "linux")
+
+    assert len(value) == 16
+    int(value, 16)
+    assert path.read_text(encoding="utf-8") == value + "\n"
+    assert machine_id(env, "linux") == value
+
+
+def test_machine_id_reclaims_undecodable_file(tmp_path):
+    """A corrupt (non-UTF-8) file yields a usable id instead of raising."""
+    env = _env(tmp_path)
+    path = _ecosystem(tmp_path) / "machine-id"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"\xff\xfe invalid \x00")
+
+    value = machine_id(env, "linux")
+
+    assert len(value) == 16
+    int(value, 16)
+    assert path.read_text(encoding="utf-8") == value + "\n"
+
+
+def test_machine_id_unreadable_file_never_replaced(tmp_path):
+    """An existing but unreadable id propagates — it is never silently
+    replaced by a fresh one."""
+    if os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0):
+        return  # chmod 000 does not block root; POSIX modes n/a on Windows
+    env = _env(tmp_path)
+    path = _ecosystem(tmp_path) / "machine-id"
+    path.parent.mkdir(parents=True)
+    path.write_text("preexisting12345\n", encoding="utf-8")
+    path.chmod(0o000)
+
+    try:
+        with pytest.raises(OSError):
+            machine_id(env, "linux")
+    finally:
+        path.chmod(0o600)
+
+    assert path.read_text(encoding="utf-8") == "preexisting12345\n"
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +245,31 @@ def test_profile_unknown_file_value_fails_closed(tmp_path):
     (eco / "devin-profile.json").write_text(
         json.dumps({"profile": "enterprise"}), encoding="utf-8"
     )
+
+    assert profile(env, "linux") == "corporate"
+
+
+def test_profile_invalid_canonical_fails_closed_over_legacy(tmp_path):
+    """A present-but-invalid canonical file must not fall through to a
+    less strict legacy value."""
+    env = _env(tmp_path)
+    eco = _ecosystem(tmp_path)
+    eco.mkdir(parents=True)
+    (eco / "devin-profile.json").write_text(
+        json.dumps({"profile": "enterprise"}), encoding="utf-8"
+    )
+    (eco.parent / "devin-profile.json").write_text(
+        json.dumps({"profile": "personal"}), encoding="utf-8"
+    )
+
+    assert profile(env, "linux") == "corporate"
+
+
+def test_profile_undecodable_file_fails_closed(tmp_path):
+    env = _env(tmp_path)
+    eco = _ecosystem(tmp_path)
+    eco.mkdir(parents=True)
+    (eco / "devin-profile.json").write_bytes(b"\xff\xfe\x00")
 
     assert profile(env, "linux") == "corporate"
 

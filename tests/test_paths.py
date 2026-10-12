@@ -17,6 +17,7 @@ from devin_internals.paths import (
     credentials_toml_candidates,
     default_config_dir,
     default_data_dir,
+    ecosystem_anchor_dir,
     first_existing,
     resolve,
     session_locks_dir_candidates,
@@ -294,6 +295,8 @@ def test_sessions_db_candidates_data_first(tmp_path):
     assert cands == [
         data / "cli" / "sessions.db",
         config / "cli" / "sessions.db",
+        # legacy split-Linux CLI root: lowercase sibling of the UI root
+        tmp_path / "devin" / "cli" / "sessions.db",
     ]
 
 
@@ -303,7 +306,26 @@ def test_session_locks_dir_candidates_data_first(tmp_path):
     assert session_locks_dir_candidates(data, config) == [
         data / "cli" / "session_locks",
         config / "cli" / "session_locks",
+        tmp_path / "devin" / "cli" / "session_locks",
     ]
+
+
+def test_sessions_db_candidates_cover_lowercase_legacy_root(tmp_path):
+    """Split-Linux layout: GUI under ``Devin``, legacy CLI under
+    ``devin`` — the lowercase sibling must be probed."""
+    env = _linux_env(tmp_path)
+    env["DEVIN_DATA_DIR"] = str(tmp_path / "custom-data")
+    legacy = tmp_path / "xdg-config" / "devin"
+    (legacy / "cli").mkdir(parents=True)
+    (legacy / "cli" / "sessions.db").touch()
+    (tmp_path / "xdg-config" / "Devin" / "User").mkdir(parents=True)
+
+    paths = resolve(env, "linux")
+
+    assert paths.config_dir.name == "Devin"
+    assert first_existing(
+        sessions_db_candidates(paths.data_dir, paths.config_dir)
+    ) == (legacy / "cli" / "sessions.db")
 
 
 def test_credentials_toml_candidates_data_first(tmp_path):
@@ -365,3 +387,82 @@ def test_real_machine_layout(tmp_path):
     assert paths.config_dir == electron
     assert paths.ecosystem_dir == electron / ".devin-ecosystem"
     assert paths.sessions_db == data / "cli" / "sessions.db"
+
+
+def test_resolve_empty_data_user_tree_does_not_hide_gui_stores(tmp_path):
+    """An empty ``User/`` under the data root must not shadow populated
+    GUI stores under the config root."""
+    env = _linux_env(tmp_path)
+    data = tmp_path / "xdg-data" / "devin"
+    config = tmp_path / "xdg-config" / "Devin"
+    (data / "cli").mkdir(parents=True)
+    (data / "cli" / "sessions.db").touch()
+    (data / "User").mkdir(parents=True)  # exists but empty
+    (config / "User" / "acp-messages").mkdir(parents=True)
+    (config / "User" / "acp-messages" / "a.db").touch()
+    (config / "User" / "globalStorage").mkdir(parents=True)
+    (config / "User" / "globalStorage" / "state.vscdb").touch()
+
+    paths = resolve(env, "linux")
+
+    assert paths.acp_messages_dir == config / "User" / "acp-messages"
+    assert paths.state_vscdb == (
+        config / "User" / "globalStorage" / "state.vscdb"
+    )
+
+
+def test_resolve_gui_root_is_per_store(tmp_path):
+    """Each GUI store picks the root that actually contains it."""
+    env = _linux_env(tmp_path)
+    env["DEVIN_DATA_DIR"] = str(tmp_path / "devin-data")
+    env["DEVIN_CONFIG_DIR"] = str(tmp_path / "devin-config")
+    data, config = tmp_path / "devin-data", tmp_path / "devin-config"
+    (data / "User" / "acp-messages").mkdir(parents=True)
+    (config / "User" / "globalStorage").mkdir(parents=True)
+    (config / "User" / "globalStorage" / "state.vscdb").touch()
+
+    paths = resolve(env, "linux")
+
+    assert paths.acp_messages_dir == data / "User" / "acp-messages"
+    assert paths.state_vscdb == (
+        config / "User" / "globalStorage" / "state.vscdb"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ecosystem anchor — identity files never follow User/ probing
+# ---------------------------------------------------------------------------
+
+
+def test_ecosystem_anchor_ignores_late_lowercase_user_tree(tmp_path):
+    """A ``devin/User`` tree appearing after the fact must not move the
+    identity anchor away from canonical ``Devin``."""
+    env = _linux_env(tmp_path)
+
+    before = ecosystem_anchor_dir(env, "linux")
+    (tmp_path / "xdg-config" / "devin" / "User").mkdir(parents=True)
+    after = ecosystem_anchor_dir(env, "linux")
+
+    assert before == after == tmp_path / "xdg-config" / "Devin"
+    # config_dir DOES follow User/ — the anchor is deliberately separate.
+    assert default_config_dir(env, "linux").name == "devin"
+
+
+def test_ecosystem_anchor_reads_existing_lowercase_ecosystem(tmp_path):
+    """A machine whose ``.devin-ecosystem`` already lives under the
+    lowercase root keeps it — identity is never re-anchored."""
+    env = _linux_env(tmp_path)
+    legacy_eco = tmp_path / "xdg-config" / "devin" / ".devin-ecosystem"
+    legacy_eco.mkdir(parents=True)
+
+    assert ecosystem_anchor_dir(env, "linux") == (
+        tmp_path / "xdg-config" / "devin"
+    )
+    assert resolve(env, "linux").ecosystem_dir == legacy_eco
+
+
+def test_ecosystem_anchor_env_override_wins(tmp_path):
+    env = _linux_env(tmp_path)
+    env["DEVIN_CONFIG_DIR"] = str(tmp_path / "explicit")
+
+    assert ecosystem_anchor_dir(env, "linux") == tmp_path / "explicit"

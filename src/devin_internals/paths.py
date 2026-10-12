@@ -92,22 +92,63 @@ def default_config_dir(
     ``Devin`` and ``devin`` exist in the wild — the candidate holding a
     ``User/`` tree wins; a fresh machine falls back to ``Devin``,
     capitalized.
+
+    Identity files must NOT anchor here — a ``User/`` tree appearing
+    under the lowercase root later would silently move them. Use
+    :func:`ecosystem_anchor_dir` for ``.devin-ecosystem``.
     """
     env = os.environ if environ is None else environ
     plat = sys.platform if platform is None else platform
     override = env.get(CONFIG_DIR_ENV)
     if override:
         return Path(override).expanduser()
+    if plat.startswith("win") or plat == "darwin":
+        return _platform_config_dir(env, plat)
+    candidates = _config_root_candidates(env)
+    return next(
+        (root for root in candidates if (root / "User").is_dir()),
+        candidates[0],
+    )
+
+
+def _platform_config_dir(env: dict[str, str], plat: str) -> Path:
+    """Non-Linux config default (Windows/macOS probe nothing)."""
     if plat.startswith("win"):
         appdata = env.get("APPDATA")
         if appdata:
             return Path(appdata) / "Devin"
         return Path.home() / "AppData" / "Roaming" / "Devin"
-    if plat == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Devin"
+    return Path.home() / "Library" / "Application Support" / "Devin"
+
+
+def ecosystem_anchor_dir(
+    environ: dict[str, str] | None = None, platform: str | None = None
+) -> Path:
+    """Directory ``.devin-ecosystem`` anchors under.
+
+    ``DEVIN_CONFIG_DIR`` wins; then the platform default. On Linux the
+    first config-root candidate already holding ``.devin-ecosystem``
+    wins — identity files (``machine-id``, ``devin-profile.json``) must
+    never silently move just because a ``User/`` tree appeared under
+    the other root — and a fresh machine falls back to the canonical
+    capitalized ``Devin``. Unlike :func:`default_config_dir` this never
+    follows ``User/`` presence, so the anchor is stable across
+    GUI-store drift.
+    """
+    env = os.environ if environ is None else environ
+    plat = sys.platform if platform is None else platform
+    override = env.get(CONFIG_DIR_ENV)
+    if override:
+        return Path(override).expanduser()
+    if plat.startswith("win") or plat == "darwin":
+        return _platform_config_dir(env, plat)
     candidates = _config_root_candidates(env)
     return next(
-        (root for root in candidates if (root / "User").is_dir()),
+        (
+            root
+            for root in candidates
+            if (root / ECOSYSTEM_DIRNAME).is_dir()
+        ),
         candidates[0],
     )
 
@@ -156,14 +197,21 @@ def ecosystem_dir_path(config_root: Path) -> Path:
     return Path(config_root) / ECOSYSTEM_DIRNAME
 
 
-def _gui_root(data_dir: Path, config_dir: Path) -> Path:
-    """Locate the ``User/`` tree.
+def _gui_root(data_dir: Path, config_dir: Path, store: str) -> Path:
+    """Locate the ``User/`` tree holding ``store``.
 
     Fixture-style and unified layouts keep ``User/`` under the data root;
     real Linux installs split stores across ``~/.local/share/devin``
-    (data) and ``~/.config/Devin`` (UI config). Same rule
-    ``contract._gui_root`` applies to a caller-supplied data dir.
+    (data) and ``~/.config/Devin`` (UI config). When both roots hold a
+    ``User/`` directory, the one containing the requested store wins —
+    an empty ``User/`` under the data root must not hide real GUI
+    stores under the config root. Same rule ``contract._gui_root``
+    applies to a caller-supplied data dir.
     """
+    if (Path(data_dir) / "User" / store).exists():
+        return Path(data_dir)
+    if (Path(config_dir) / "User" / store).exists():
+        return Path(config_dir)
     if (Path(data_dir) / "User").is_dir():
         return Path(data_dir)
     return Path(config_dir)
@@ -189,7 +237,9 @@ class DevinPaths:
     state_vscdb: Path
     ecosystem_dir: Path
     """``<config>/.devin-ecosystem`` — machine-id, profile, hooks,
-    scheduled jobs, plans, metrics."""
+    scheduled jobs, plans, metrics. Anchored via
+    :func:`ecosystem_anchor_dir`, which does not follow ``User/``
+    presence, so identity files never silently move."""
 
 
 def resolve(
@@ -206,16 +256,19 @@ def resolve(
     plat = sys.platform if platform is None else platform
     data_dir = default_data_dir(env, plat)
     config_dir = default_config_dir(env, plat)
-    gui_root = _gui_root(data_dir, config_dir)
+    acp_root = _gui_root(data_dir, config_dir, "acp-messages")
+    state_root = _gui_root(
+        data_dir, config_dir, str(Path("globalStorage") / "state.vscdb")
+    )
     return DevinPaths(
         data_dir=data_dir,
         config_dir=config_dir,
         sessions_db=sessions_db_path(data_dir),
         session_locks_dir=session_locks_dir_path(data_dir),
         credentials_toml=credentials_toml_path(data_dir),
-        acp_messages_dir=acp_messages_dir_path(gui_root),
-        state_vscdb=state_vscdb_path(gui_root),
-        ecosystem_dir=ecosystem_dir_path(config_dir),
+        acp_messages_dir=acp_messages_dir_path(acp_root),
+        state_vscdb=state_vscdb_path(state_root),
+        ecosystem_dir=ecosystem_dir_path(ecosystem_anchor_dir(env, plat)),
     )
 
 
@@ -229,16 +282,32 @@ def _dedup(paths: Iterable[Path]) -> list[Path]:
     return list(dict.fromkeys(paths))
 
 
+def _legacy_cli_config_root(config_dir: Path) -> Path:
+    """The lowercase sibling of the UI config root.
+
+    Split Linux installs kept CLI stores under
+    ``$XDG_CONFIG_HOME/devin`` while the desktop writes its ``User/``
+    tree under ``$XDG_CONFIG_HOME/Devin`` — the UI root passed as
+    ``config_dir`` is not an alias for that legacy CLI root. When
+    ``config_dir`` is already the lowercase root (or an explicit
+    override), dedup or a nonexistent path keeps the candidate list
+    honest.
+    """
+    return Path(config_dir).parent / "devin"
+
+
 def sessions_db_candidates(
     data_dir: str | Path, config_dir: str | Path
 ) -> list[Path]:
-    """``cli/sessions.db`` — data root is canonical; the config root is a
-    legacy fallback (split Linux installs kept it under
-    ``$XDG_CONFIG_HOME/devin``)."""
+    """``cli/sessions.db`` — data root is canonical; the config root and
+    its lowercase sibling are legacy fallbacks (split Linux installs
+    kept it under ``$XDG_CONFIG_HOME/devin``, not under the ``Devin``
+    UI root)."""
     return _dedup(
         [
             sessions_db_path(Path(data_dir)),
             sessions_db_path(Path(config_dir)),
+            sessions_db_path(_legacy_cli_config_root(Path(config_dir))),
         ]
     )
 
@@ -246,11 +315,13 @@ def sessions_db_candidates(
 def session_locks_dir_candidates(
     data_dir: str | Path, config_dir: str | Path
 ) -> list[Path]:
-    """``cli/session_locks/`` — same data-first order as ``sessions.db``."""
+    """``cli/session_locks/`` — same data-first order and lowercase-sibling
+    legacy fallback as ``sessions.db`` (locks live beside it)."""
     return _dedup(
         [
             session_locks_dir_path(Path(data_dir)),
             session_locks_dir_path(Path(config_dir)),
+            session_locks_dir_path(_legacy_cli_config_root(Path(config_dir))),
         ]
     )
 

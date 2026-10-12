@@ -13,7 +13,8 @@ Resolution order:
 
 - ``machine_id``: the ``DEVIN_MACHINE_ID`` env var wins; otherwise a
   random ``secrets.token_hex(8)`` persisted at
-  ``<ecosystem>/machine-id`` (mode 0600, created on first use, never
+  ``<ecosystem>/machine-id`` (mode 0600, published on first use via
+  exclusive create — concurrent losers adopt the winner's value; never
   regenerated). Never derived from hostname, username or hardware ids.
 - ``profile``: the ``DEVIN_ECOSYSTEM_PROFILE`` env var
   (``"corporate"`` | ``"personal"``) — a set-but-unrecognized value fails
@@ -29,9 +30,10 @@ import json
 import os
 import secrets
 import sys
+import time
 from pathlib import Path
 
-from devin_internals.paths import ECOSYSTEM_DIRNAME, default_config_dir
+from devin_internals.paths import ECOSYSTEM_DIRNAME, ecosystem_anchor_dir
 
 MACHINE_ID_ENV = "DEVIN_MACHINE_ID"
 PROFILE_ENV = "DEVIN_ECOSYSTEM_PROFILE"
@@ -50,7 +52,7 @@ def _ecosystem_dir(
     ``<devin-config-dir>/.devin-ecosystem``."""
     if ecosystem_dir is not None:
         return Path(ecosystem_dir).expanduser()
-    return default_config_dir(env, plat) / ECOSYSTEM_DIRNAME
+    return ecosystem_anchor_dir(env, plat) / ECOSYSTEM_DIRNAME
 
 
 def machine_id_path(
@@ -102,28 +104,94 @@ def machine_id(
     path = _ecosystem_dir(env, plat, ecosystem_dir) / MACHINE_ID_FILENAME
     try:
         existing = path.read_text(encoding="utf-8").strip()
-    except OSError:
+    except FileNotFoundError:
         existing = ""
+    except UnicodeDecodeError:
+        existing = ""  # corrupt file — the publish path reclaims it
+    # Any other OSError (permissions, I/O) propagates: an existing but
+    # unreadable id must never be silently replaced.
     if existing:
         return existing
-    value = secrets.token_hex(8)
+    return _publish_machine_id(path)
+
+
+def _publish_machine_id(path: Path) -> str:
+    """Create ``path`` exactly once and return the persisted id.
+
+    ``O_EXCL`` creation at mode ``0600`` serializes first use across
+    processes: the loser of a creation race reads back the winner's
+    value instead of splitting provenance, and the id is never
+    world-readable, not even between create and ``fchmod``. An empty or
+    undecodable file left behind (crashed publisher, corrupt copy) is
+    reclaimed after a short wait.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(value + "\n", encoding="utf-8")
-    try:
-        path.chmod(0o600)
-    except OSError:  # filesystems without POSIX modes
-        pass
-    return value
+    for _attempt in range(5):
+        value = secrets.token_hex(8)
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            winner = _wait_for_published_id(path)
+            if winner:
+                return winner
+            try:
+                path.unlink()  # stale/corrupt — reclaim and retry
+            except OSError:
+                pass
+            continue
+        try:
+            fchmod = getattr(os, "fchmod", None)  # Unix-only
+            if fchmod is not None:
+                try:
+                    fchmod(fd, 0o600)
+                except OSError:  # filesystems without POSIX modes
+                    pass
+            os.write(fd, f"{value}\n".encode("ascii"))
+        finally:
+            os.close(fd)
+        return value
+    winner = _wait_for_published_id(path)
+    if winner:
+        return winner
+    raise OSError(f"could not establish a stable machine-id at {path}")
+
+
+def _wait_for_published_id(path: Path) -> str:
+    """Read the race winner's id; ``""`` while the file is still empty
+    or undecodable.
+
+    Missing is fine (the caller retries the create); other read errors
+    propagate — an existing but unreadable id is never replaced.
+    """
+    for _ in range(50):  # ~1s bound — a publish takes microseconds
+        try:
+            winner = path.read_text(encoding="utf-8").strip()
+        except FileNotFoundError:
+            return ""
+        except UnicodeDecodeError:
+            winner = ""
+        if winner:
+            return winner
+        time.sleep(0.02)
+    return ""
 
 
 def _profile_from_file(path: Path) -> str | None:
+    """Profile stored in ``path``; ``None`` only when the file is absent.
+
+    A present but unreadable, corrupt or unrecognized file fails closed
+    to the default — it must not silently fall through to a less strict
+    legacy value.
+    """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return None
+    except (OSError, ValueError):  # incl. JSONDecodeError, UnicodeDecodeError
+        return DEFAULT_PROFILE
     raw = data.get("profile") if isinstance(data, dict) else data
     raw = str(raw or "").strip().lower()
-    return raw if raw in PROFILES else None
+    return raw if raw in PROFILES else DEFAULT_PROFILE
 
 
 def profile(

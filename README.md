@@ -173,16 +173,20 @@ its on-disk state — the reference the ecosystem's vendored `paths.py` copies
 bookkeeping (`machine-id`, `devin-profile.json`, `hooks.json`,
 `scheduled.json`, `plans.jsonl`, `metrics/`). `DEVIN_DATA_DIR` /
 `DEVIN_CONFIG_DIR` override the roots; candidate-order helpers cover files
-that may live under data *or* config roots, and a unified `User/`-under-data
-layout is detected automatically. `environ`/`platform` are injectable for
-tests.
+that may live under data *or* config roots — including the legacy
+lowercase `$XDG_CONFIG_HOME/devin` CLI root on Linux — and a unified
+`User/`-under-data layout is detected per store. The ecosystem anchor is
+resolved separately from UI-store probing (`ecosystem_anchor_dir`), so a
+`User/` tree appearing later can never move an existing identity.
+`environ`/`platform` are injectable for tests.
 
 `devin_internals.identity` resolves the shared machine identity the same way
 every devin-* tool does: `machine_id()` returns `DEVIN_MACHINE_ID` or a random
-16-hex id persisted once at `<ecosystem>/machine-id` (mode `0600`, never
-regenerated); `profile()` resolves `DEVIN_ECOSYSTEM_PROFILE`, then
-`devin-profile.json` (canonical ecosystem location first, then the legacy
-config-root copy), failing closed to `"corporate"`.
+16-hex id published once at `<ecosystem>/machine-id` (mode `0600`, exclusive
+create — concurrent losers adopt the winner, never regenerated); `profile()`
+resolves `DEVIN_ECOSYSTEM_PROFILE`, then `devin-profile.json` (canonical
+ecosystem location first, then the legacy config-root copy), failing closed
+to `"corporate"` whenever a resolved value is invalid.
 
 ```python
 from devin_internals.paths import resolve
@@ -205,9 +209,11 @@ local; nothing external is needed.
 ## Platform support
 
 Pure stdlib Python — identical behavior on Windows, Linux and macOS. CI runs
-the suite on `windows-latest` + `ubuntu-latest`; the target file or
-directory is always an explicit argument, so there are no
-platform-specific paths.
+the suite on `windows-latest` + `ubuntu-latest`. Parsers and CLI
+subcommands take the target file or directory as an explicit argument;
+only `devin_internals.paths`/`identity` resolve platform conventions,
+and both accept injectable `environ`/`platform` plus the
+`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` overrides.
 
 
 ### `vscdb-scan` — shape-only audit (IS-1)

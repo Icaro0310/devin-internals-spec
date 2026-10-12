@@ -18,8 +18,9 @@ uv tool install 'devin-internals-spec'
 
 ## Devin paths
 
-Session data normally lives under `${XDG_DATA_HOME:-$HOME/.local/share}/devin/cli/`; UI state and ACP stores under `${XDG_CONFIG_HOME:-$HOME/.config}/Devin/User/`.
-Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
+Session data normally lives under `${XDG_DATA_HOME:-$HOME/.local/share}/devin/cli/`; UI state and ACP stores under `${XDG_CONFIG_HOME:-$HOME/.config}/Devin/User/` (capitalized `Devin` — a lowercase `$XDG_CONFIG_HOME/devin` CLI root also exists in the wild and is probed as a legacy fallback).
+Ecosystem bookkeeping — `machine-id` (mode `0600`), `devin-profile.json`, `hooks.json`, `plans.jsonl`, `metrics/` — anchors under `<config>/.devin-ecosystem/`, resolved independently of `User/` probing so identity files never move.
+`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` override the roots; `DEVIN_MACHINE_ID`/`DEVIN_ECOSYSTEM_PROFILE` override identity. Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
 
 ## Environment notes
 
