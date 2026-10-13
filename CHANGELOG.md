@@ -41,6 +41,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
 - Platform guides and the README install command no longer pin a release; they install the latest published version.
 
+## [0.3.1] - 2026-10-13
+
+### Added
+
+- `devin_internals.cursor` — shared incremental-cursor helper: one
+  JSON object per cursor at `<dir>/<name>-state.json`, atomic
+  `commit()` (tmp + `os.replace`) that merges with on-disk state,
+  fail-open reads, `DEVIN_CURSOR_DIR`/explicit `dir=` override.
+
+### Fixed
+
+- `__version__` bumped to match `pyproject.toml` (0.3.1) so the
+  publish-version check passes.
+- `Cursor` rejects names containing path separators or `..` on every
+  platform, undecodable state files read as empty, `commit()` rejects
+  non-finite values instead of writing nonstandard JSON.
+
 ## [0.3.0] - 2026-10-04
 
 ### Added

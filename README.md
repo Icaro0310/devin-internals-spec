@@ -207,6 +207,32 @@ paths.ecosystem_dir        # <config>/.devin-ecosystem
 provenance()               # {"machine_id": ..., "profile": "corporate"|"personal"}
 ```
 
+## Incremental cursors (`devin_internals.cursor`)
+
+`Cursor` is the shared incremental-watermark helper — one JSON object
+per cursor at `<dir>/<name>-state.json`, for learning extract, sweeps,
+digests and any "resume where I stopped" mechanism (spec:
+`devin-powerups/docs/incrementality.md`).
+
+- The anchor dir defaults to `<cwd>/.devin` and is overridable per
+  cursor via the `DEVIN_CURSOR_DIR` env or an explicit `dir=` argument.
+- `commit()` is the only write: atomic (tmp + `os.replace`), called
+  *after* the work so a crash re-scans instead of skipping, and it
+  merges with whatever is on disk so two cursors sharing a name do not
+  erase each other's keys.
+- Missing or corrupt state reads as empty (fail-open); non-finite
+  values (`NaN`, `inf`) are rejected at commit time.
+
+```python
+from devin_internals import cursor
+
+c = cursor.Cursor("learning-extract")
+last = c.get("last_ts", 0)
+# ...process everything newer than last...
+c.set("last_ts", newest_ts)
+c.commit()
+```
+
 ## Works with Devin alone (Devin-only mode)
 
 The spec is documentation plus a small local validation library: it reads

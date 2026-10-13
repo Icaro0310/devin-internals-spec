@@ -42,7 +42,13 @@ class Cursor:
         dir: str | Path | None = None,
         environ: dict[str, str] | None = None,
     ) -> None:
-        if not name or "/" in name or name.startswith("."):
+        if (
+            not name
+            or "/" in name
+            or "\\" in name
+            or ".." in name
+            or name.startswith(".")
+        ):
             raise ValueError(f"invalid cursor name {name!r}")
         self.name = name
         env = os.environ if environ is None else environ
@@ -52,13 +58,16 @@ class Cursor:
         self.path = Path(dir) / f"{name}-state.json"
         self._state: dict | None = None
 
+    def _read_disk(self) -> dict:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {}
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+
     def _load(self) -> dict:
         if self._state is None:
-            try:
-                data = json.loads(self.path.read_text(encoding="utf-8"))
-                self._state = data if isinstance(data, dict) else {}
-            except (OSError, json.JSONDecodeError):
-                self._state = {}
+            self._state = self._read_disk()
         return self._state
 
     def get(self, key: str, default=None):
@@ -77,9 +86,18 @@ class Cursor:
             dir=self.path.parent, prefix=self.path.name, suffix=".tmp"
         )
         try:
+            # Re-read the file now and merge: two Cursor objects sharing
+            # a name race on the same state file — a stale in-memory
+            # snapshot must not erase keys the other one committed.
+            merged = self._read_disk()
+            merged.update(self._load())
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
-                json.dump(self._load(), fh, ensure_ascii=False, indent=1)
+                json.dump(
+                    merged, fh, ensure_ascii=False, indent=1,
+                    allow_nan=False,
+                )
                 fh.write("\n")
+            self._state = merged
             os.replace(tmp, self.path)
         except BaseException:
             try:
