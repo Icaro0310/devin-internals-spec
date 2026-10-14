@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-internals-spec"
-version = "0.3.1"
+version = "0.3.2"
 description = "Documented internals of Devin Desktop/CLI session stores, schema-version detection and test fixtures (unofficial)"
 readme = "README.md"
 license = { text = "MIT" }
