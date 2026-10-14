@@ -229,6 +229,11 @@ class SessionsStore:
         batch_size: int,
     ) -> Iterator[_T]:
         """Yield ``factory(row)`` lazily, ``batch_size`` rows at a time."""
+        if batch_size < 1:
+            raise ValueError(
+                f"batch_size must be >= 1, got {batch_size} — "
+                "fetchmany(0) drains the whole table and defeats streaming"
+            )
         cur = self._con.execute(sql, args)
         while batch := cur.fetchmany(batch_size):
             for row in batch:

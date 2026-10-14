@@ -155,6 +155,36 @@ def test_sessions_store_max_ids(tmp_path):
     }
 
 
+def test_sessions_store_max_ids_empty(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
+    with SessionsStore(db) as store:
+        assert store.max_ids() == {
+            "message_nodes": 0,
+            "prompt_history": 0,
+            "rendered_commits": 0,
+        }
+
+
+def test_sessions_store_iterators_reject_bad_batch_size(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", n_sessions=1)
+    with SessionsStore(db) as store:
+        for bad in (0, -1):
+            # Generators defer to first next(); the check still fires
+            # before any fetchmany, so no rows are drained.
+            with pytest.raises(ValueError, match="batch_size"):
+                list(store.iter_message_nodes(batch_size=bad))
+            with pytest.raises(ValueError, match="batch_size"):
+                list(store.iter_sessions(batch_size=bad))
+
+
+def test_acp_messages_iter_rejects_bad_batch_size(tmp_path):
+    db = create_acp_messages_db(tmp_path / "acp.db")
+    with AcpMessagesStore(db) as store:
+        for bad in (0, -1):
+            with pytest.raises(ValueError, match="batch_size"):
+                list(store.iter_messages(batch_size=bad))
+
+
 def test_sessions_store_unknown_version_fails_loud(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db", schema_version=99)
     with pytest.raises(UnknownSchemaVersionError, match="version 99"):

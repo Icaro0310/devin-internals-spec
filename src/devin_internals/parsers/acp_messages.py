@@ -115,6 +115,11 @@ class AcpMessagesStore:
         Rows are fetched ``batch_size`` at a time via ``fetchmany``, so a
         large ``messages`` table never materializes as a Python list.
         """
+        if batch_size < 1:
+            raise ValueError(
+                f"batch_size must be >= 1, got {batch_size} — "
+                "fetchmany(0) drains the whole table and defeats streaming"
+            )
         cur = self._con.execute(
             "SELECT position, kind, payload FROM messages ORDER BY position"
         )
