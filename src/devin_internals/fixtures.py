@@ -437,13 +437,23 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
 
     Returns ``{"root", "sessions": [...]}`` with per-session facts (native_id,
     workspace seed, event count, ms timestamps) for manifest generation.
+
+    The builder owns the session-store dirs and clears their contents before
+    writing (reseed correctness: a reader must never scan orphan sessions).
+    Callers must pass a disposable fixture root — never a real
+    ``$COPILOT_HOME``/``~/.copilot``.
     """
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
-    # The builder owns both state dirs — clear before writing so reseeding
-    # with a different seed can't leave orphan sessions a reader would scan.
-    for owned in ("session-state", "history-session-state"):
-        shutil.rmtree(root / owned, ignore_errors=True)
+    # session-state/ and history-session-state/ are pure session stores, so
+    # clearing them is surgical scope: delete and recreate the dirs, touch
+    # nothing else under root. No ignore_errors — a failed removal must fail
+    # loudly, never leave a stale session the manifest under-declares.
+    for store in ("session-state", "history-session-state"):
+        d = root / store
+        if d.exists():
+            shutil.rmtree(d)
+        d.mkdir()
     sessions: list[dict] = []
 
     def emit(key: str, layout: str, events_dir: Path | None, events_file: Path,
@@ -597,15 +607,22 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
     - ``rollout-duplicate``: same native id + cwd as thread A — ``duplicates``.
 
     Returns ``{"root", "state_db", "sessions", "ignored"}`` for manifest use.
+
+    The builder owns the session stores (``state_*.sqlite``, ``sessions/``)
+    and clears them before writing. Callers must pass a disposable fixture
+    root — never a real ``$CODEX_HOME``/``~/.codex``.
     """
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
+    # Surgical scope: remove only session-store artifacts — every
+    # state_*.sqlite (any N, catching orphans from other seeds) and the
+    # contents of sessions/. No ignore_errors: failures propagate loudly.
+    for stale_db in root.glob("state_*.sqlite"):
+        stale_db.unlink()
+    sessions_dir = root / "sessions"
+    if sessions_dir.exists():
+        shutil.rmtree(sessions_dir)
     state_db = root / "state_4.sqlite"
-    if state_db.exists():
-        state_db.unlink()
-    # Rollout names are fixed today, but the builder owns sessions/ — clear
-    # it so a stale file can never be scanned alongside the declared set.
-    shutil.rmtree(root / "sessions", ignore_errors=True)
 
     t = _CORPUS_T0_MS
     thread_a = _fake_uuid(seed, "codex-thread-a")
@@ -725,11 +742,29 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
     session: ``workspace_hash`` null is a legitimate identity per spec, **not**
     ``unknown-workspace``. All sessions end with a completed last request
     (task-complete-style close, §5.1).
+
+    The builder owns only the chat-session stores —
+    ``workspaceStorage/*/chatSessions`` and
+    ``globalStorage/{emptyWindow,transferred}ChatSessions``. Callers must
+    pass a disposable fixture root, never a real config dir.
     """
     root = Path(root)
-    # The builder owns the whole <Variant>/User tree — clear before writing
-    # so reseeding can't orphan chatSessions files a reader would scan.
-    shutil.rmtree(root / "Code" / "User", ignore_errors=True)
+    # Surgical cleanup: delete only session-store dirs, never the Code/User
+    # tree (settings, state.vscdb, other per-workspace state may live there).
+    # A workspace dir is removed only when empty after chatSessions is gone.
+    # No ignore_errors — failures must propagate loudly.
+    storage = root / "Code" / "User" / "workspaceStorage"
+    if storage.is_dir():
+        for ws_dir in storage.iterdir():
+            chat_sessions = ws_dir / "chatSessions"
+            if chat_sessions.is_dir():
+                shutil.rmtree(chat_sessions)
+            if ws_dir.is_dir() and not any(ws_dir.iterdir()):
+                ws_dir.rmdir()
+    for name in ("emptyWindowChatSessions", "transferredChatSessions"):
+        d = root / "Code" / "User" / "globalStorage" / name
+        if d.is_dir():
+            shutil.rmtree(d)
     t = _CORPUS_T0_MS
     variant = root / "Code" / "User"
 

@@ -339,34 +339,68 @@ def _scanned_copilot_ids(root: Path) -> set[str]:
 
 
 def _scanned_vscode_ids(root: Path) -> set[str]:
+    """The session set a reader discovers under a VS Code User dir (§6.5):
+    only workspaceStorage/*/chatSessions and the two global session dirs —
+    never other files that legitimately live under User/."""
     user = root / "Code" / "User"
-    return {
-        p.stem
-        for p in user.rglob("*")
-        if p.is_file() and p.suffix in {".json", ".jsonl"}
-    }
+    ids: set[str] = set()
+    storage = user / "workspaceStorage"
+    if storage.is_dir():
+        for ws_dir in storage.iterdir():
+            chat = ws_dir / "chatSessions"
+            if chat.is_dir():
+                ids.update(
+                    p.stem
+                    for p in chat.iterdir()
+                    if p.is_file() and p.suffix in {".json", ".jsonl"}
+                )
+    for name in ("emptyWindowChatSessions", "transferredChatSessions"):
+        d = user / "globalStorage" / name
+        if d.is_dir():
+            ids.update(
+                p.stem
+                for p in d.iterdir()
+                if p.is_file() and p.suffix in {".json", ".jsonl"}
+            )
+    return ids
 
 
 def test_reseeding_clears_orphan_sessions(tmp_path):
     """A second build at the same root must not retain first-seed sessions —
     a reader scanning the store would see sessions the builder never
-    declared."""
+    declared. Cleanup is surgical: non-session files planted beside the
+    stores must survive the rebuild."""
     cop = tmp_path / "copilot"
     create_copilot_session_state(cop, seed=DEFAULT_SEED)
+    stray = cop / "stray-note.txt"  # not a session store — must survive
+    stray.write_text("keep me")
     out = create_copilot_session_state(cop, seed=DEFAULT_SEED + 1)
     declared = {s["native_id"] for s in out["sessions"]}
     assert len(declared) == 4
     assert _scanned_copilot_ids(cop) == declared
+    assert stray.read_text() == "keep me"
 
     vs = tmp_path / "vscode"
     create_vscode_chat_storage(vs, seed=DEFAULT_SEED)
+    settings = vs / "Code" / "User" / "settings.json"
+    other_ws = vs / "Code" / "User" / "workspaceStorage" / "deadbeef" / "state.vscdb"
+    for sentinel in (settings, other_ws):
+        sentinel.parent.mkdir(parents=True, exist_ok=True)
+        sentinel.write_text("keep me")
     out = create_vscode_chat_storage(vs, seed=DEFAULT_SEED + 1)
     declared = {s["native_id"] for s in out["sessions"]}
     assert len(declared) == 3
     assert _scanned_vscode_ids(vs) == declared
+    assert settings.read_text() == "keep me"
+    # a wsDir holding non-session content survives intact
+    assert other_ws.read_text() == "keep me"
 
     cdx = tmp_path / "codex"
     create_codex_store(cdx, seed=DEFAULT_SEED)
+    stray = cdx / "config.toml"
+    stray.write_text("keep me")
+    stale_db = cdx / "state_2.sqlite"  # older-N state db — still a session store
+    stale_db.write_bytes(b"stale")
     create_codex_store(cdx, seed=DEFAULT_SEED + 1)
     assert {p.name for p in (cdx / "sessions").glob("*.jsonl")} == {
         "rollout-closed.jsonl",
@@ -374,6 +408,8 @@ def test_reseeding_clears_orphan_sessions(tmp_path):
         "rollout-forked.jsonl",
         "rollout-duplicate.jsonl",
     }
+    assert stray.read_text() == "keep me"
+    assert not stale_db.exists()  # state_*.sqlite orphans are removed too
 
 
 def _logical_dump(db_path: Path) -> str:
@@ -403,10 +439,8 @@ def test_committed_corpus_matches_generator(tmp_path):
                 tmp_path / "corpus" / name
             ), name
         else:
-            # Corpus text is LF-canonical (fixtures/session-corpus/
-            # .gitattributes pins eol=lf). Normalize anyway so a
-            # CRLF-materialized checkout on a core.autocrlf=true runner
-            # still compares equal to the generator's LF bytes.
-            assert fresh[name].replace(b"\r\n", b"\n") == vendored[name].replace(
-                b"\r\n", b"\n"
-            ), name
+            # Generator output is LF-canonical by construction — the fresh
+            # side compares byte-exact (an LF violation there IS drift).
+            # Only the vendored side may legitimately carry CRLF (a
+            # core.autocrlf=true checkout), so normalize it alone.
+            assert fresh[name] == vendored[name].replace(b"\r\n", b"\n"), name
