@@ -1,0 +1,25 @@
+{
+  "version": 3,
+  "sessionId": "1ac1fa88-a127-5a8c-8bf2-ea13a59f62b4",
+  "requesterUsername": "fixture-user",
+  "responderUsername": "fixture-agent",
+  "creationDate": 1780036000000,
+  "lastMessageDate": 1780036090000,
+  "requests": [
+    {
+      "requestId": "req-1",
+      "timestamp": 1780036010000,
+      "responseTimestamp": 1780036030000
+    },
+    {
+      "requestId": "req-2",
+      "timestamp": 1780036060000,
+      "responseTimestamp": 1780036090000,
+      "result": {
+        "timings": {
+          "totalElapsed": 8000
+        }
+      }
+    }
+  ]
+}

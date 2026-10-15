@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin_internals.session_corpus` + committed `fixtures/session-corpus/` —
+  the deterministic fixture corpus required by `docs/SESSION-SURFACES.md` §7:
+  synthetic stores for `copilot-cli` (all three §6.3 layouts — primary
+  `session-state/<uuid>/`, flat `<uuid>.jsonl`, legacy
+  `history-session-state/`), `codex-cli` (`state_4.sqlite` `threads` plus
+  `sessions/` rollout JSONL covering open-task, forked and duplicate
+  records, §6.4) and `vscode-chat` (final snapshot, mutation-log replay with
+  a truncated tail, `emptyWindowChatSessions` global session, §6.5), and a
+  `manifest.json` declaring the expected canonical fields (id presence,
+  state, spec warning codes, event counts, ISO timestamps — never content).
+  Regenerate with `python -m devin_internals.session_corpus
+  fixtures/session-corpus`.
+- `fixtures.create_copilot_session_state` / `create_codex_store` /
+  `create_vscode_chat_storage` — deterministic seeded builders for the three
+  non-Devin stores, same pattern as the existing Devin-store generators.
+- 9 new tests (session corpus): 143 total.
+
 - `docs/SESSION-SURFACES.md` — canonical spec for multi-agent session
   sources (D-2026-10-15): closed surface vocabulary (`vscode-chat`,
   `copilot-cli`, `codex-cli`, `devin-cli`, `devin-chat`), the canonical
