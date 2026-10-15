@@ -79,7 +79,7 @@ Result states: `ok` · `partial` · `no-sessions` · `source-not-found` ·
 
 ```
 <surface>:<workspace-hash>:<kind>:<value>   (hash present)
-<surface>:<kind>:<value>                    (hash absent)
+<surface>:<kind>:<value>                    (hash absent, non-native kinds only)
 ```
 
 `kind ∈ {native, documented-alt, provisional-hash}`. Components encode `%`
@@ -88,6 +88,16 @@ workspace hash only.** Records without workspace identity are never
 deduplicated and never claim canonical uniqueness; the same native id seen in
 *two different* workspaces is a `cross-workspace-duplicate` warning, not a
 merge.
+
+**Hashless `native` ids do not get canonical ids.** A native id is only
+unique within its workspace — two sessions from *unknown* workspaces may
+legitimately share `sess-abc`, and `<surface>:native:sess-abc` would make
+them indistinguishable (`id` identical, `display_key` identical, one
+shadows the other in keyed lists). The contract: native id + no workspace
+hash → `id: null` + `unknown-workspace` warning + a per-session unique
+ephemeral `display_key` (§2). The hash-absent form above is reserved for
+`documented-alt`/`provisional-hash` kinds, which carry their own identity
+guarantee.
 
 ## 5. `ended_at` — the inference chain (normative)
 
@@ -122,9 +132,16 @@ Candidates, first existing wins (same roots as `devin-search/paths.py`):
 | linux | `$XDG_DATA_HOME` else `~/.local/share` → `$XDG_CONFIG_HOME` else `~/.config` → `~/` |
 
 - `sessions`: `id`→native id; `working_directory`→workspace seed;
-  `created_at`, `last_activity_at` (epoch **seconds**)→timestamps;
-  `hidden=1`→skip. `title`, `metadata`, `cogs_json`, `workspace_dirs` never
-  selected.
+  `created_at`, `last_activity_at`→timestamps; `hidden=1`→skip. `title`,
+  `metadata`, `cogs_json`, `workspace_dirs` never selected.
+- **Timestamp magnitude varies by platform** — `SCHEMA.md` §1 was verified
+  against Windows stores in epoch **milliseconds**; Linux v17 stores are
+  observed in epoch **seconds** (verified, 95 rows). Both are in the wild.
+  Normalization is normative, not heuristic flavor: values `< 1e12` are
+  seconds → multiply by 1000; `>= 1e12` are already milliseconds.
+  Implementations MUST apply the discriminator — assuming either unit
+  alone silently produces dates ~1970 or ~year 56000 on the other
+  platform, and the §5 freshness rule then misfires.
 - `message_nodes`: `COUNT(*) GROUP BY session_id` → `event_count` (absent in
   old schemas → null).
 - `source_version`: `schema-v<MAX(version)>` from `refinery_schema_history`;
@@ -139,7 +156,7 @@ Candidate dirs, first existing wins (mirrors `paths.py` `acp_dir_candidates`):
 | platform | candidates (`<dir>/<session-uuid>.db`) |
 |---|---|
 | win32 | `%APPDATA%/Devin/User/acp-messages`, `~/AppData/Roaming/Devin/User/acp-messages` |
-| darwin | `~/Library/Application Support/devin/User/acp-messages` |
+| darwin | `~/Library/Application Support/Devin/User/acp-messages` |
 | linux | `~/.config/Devin/User/acp-messages`, `~/.config/devin/User/acp-messages`, `~/devin/User/acp-messages` (same for `$XDG_CONFIG_HOME` overrides) |
 
 One file per GUI session; the filename uuid is the native id.
