@@ -52,8 +52,8 @@ Explicit indexes (v17): `idx_sessions_activity` (`last_activity_at DESC`),
 | `backend_type` | TEXT | NOT NULL | execution backend label **(unstable values)** |
 | `model` | TEXT | NOT NULL | model name |
 | `agent_mode` | TEXT | NOT NULL | mode label **(unstable values)** |
-| `created_at` | INTEGER | NOT NULL | epoch **ms** |
-| `last_activity_at` | INTEGER | NOT NULL | epoch ms; drives `idx_sessions_activity` |
+| `created_at` | INTEGER | NOT NULL | epoch **ms** (Windows-verified); Linux v17 stores observed in epoch **seconds** — readers discriminate by `< 1e12` (see `SESSION-SURFACES.md` §6.1) |
+| `last_activity_at` | INTEGER | NOT NULL | epoch ms; drives `idx_sessions_activity`; same platform magnitude caveat as `created_at` |
 | `title` | TEXT | yes | human title; NULL until set |
 | `main_chain_id` | INTEGER | yes | head node of the main message chain |
 | `shell_last_seen_index` | INTEGER | yes, DEFAULT 0 | shell-output cursor |
