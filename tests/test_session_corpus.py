@@ -321,3 +321,68 @@ def test_default_seed_is_used(tmp_path):
     build_session_corpus(a, seed=DEFAULT_SEED)
     build_session_corpus(b)
     assert (a / "manifest.json").read_bytes() == (b / "manifest.json").read_bytes()
+
+
+def _scanned_copilot_ids(root: Path) -> set[str]:
+    """The session set a reader discovers under a copilot root (§6.3)."""
+    ids: set[str] = set()
+    for state_dir in ("session-state", "history-session-state"):
+        d = root / state_dir
+        if not d.is_dir():
+            continue
+        for p in d.iterdir():
+            if p.is_dir() and (p / "events.jsonl").is_file():
+                ids.add(p.name)
+            elif p.is_file() and p.suffix == ".jsonl":
+                ids.add(p.stem)
+    return ids
+
+
+def _scanned_vscode_ids(root: Path) -> set[str]:
+    user = root / "Code" / "User"
+    return {
+        p.stem
+        for p in user.rglob("*")
+        if p.is_file() and p.suffix in {".json", ".jsonl"}
+    }
+
+
+def test_reseeding_clears_orphan_sessions(tmp_path):
+    """A second build at the same root must not retain first-seed sessions —
+    a reader scanning the store would see sessions the builder never
+    declared."""
+    cop = tmp_path / "copilot"
+    create_copilot_session_state(cop, seed=DEFAULT_SEED)
+    out = create_copilot_session_state(cop, seed=DEFAULT_SEED + 1)
+    declared = {s["native_id"] for s in out["sessions"]}
+    assert len(declared) == 4
+    assert _scanned_copilot_ids(cop) == declared
+
+    vs = tmp_path / "vscode"
+    create_vscode_chat_storage(vs, seed=DEFAULT_SEED)
+    out = create_vscode_chat_storage(vs, seed=DEFAULT_SEED + 1)
+    declared = {s["native_id"] for s in out["sessions"]}
+    assert len(declared) == 3
+    assert _scanned_vscode_ids(vs) == declared
+
+    cdx = tmp_path / "codex"
+    create_codex_store(cdx, seed=DEFAULT_SEED)
+    create_codex_store(cdx, seed=DEFAULT_SEED + 1)
+    assert {p.name for p in (cdx / "sessions").glob("*.jsonl")} == {
+        "rollout-closed.jsonl",
+        "rollout-open.jsonl",
+        "rollout-forked.jsonl",
+        "rollout-duplicate.jsonl",
+    }
+
+
+def test_committed_corpus_matches_generator(tmp_path):
+    """The vendored fixtures/session-corpus/ must be byte-identical to a
+    fresh build — committing the artifacts without this check lets them
+    silently drift from the generator."""
+    committed = Path(__file__).resolve().parents[1] / "fixtures" / "session-corpus"
+    build_session_corpus(tmp_path / "corpus")
+    fresh = _file_listing(tmp_path / "corpus")
+    vendored = _file_listing(committed)
+    assert fresh.keys() == vendored.keys()
+    assert fresh == vendored

@@ -14,6 +14,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -435,6 +436,11 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
     workspace seed, event count, ms timestamps) for manifest generation.
     """
     root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    # The builder owns both state dirs — clear before writing so reseeding
+    # with a different seed can't leave orphan sessions a reader would scan.
+    for owned in ("session-state", "history-session-state"):
+        shutil.rmtree(root / owned, ignore_errors=True)
     sessions: list[dict] = []
 
     def emit(key: str, layout: str, events_dir: Path | None, events_file: Path,
@@ -590,10 +596,13 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
     Returns ``{"root", "state_db", "sessions", "ignored"}`` for manifest use.
     """
     root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
     state_db = root / "state_4.sqlite"
-    state_db.parent.mkdir(parents=True, exist_ok=True)
     if state_db.exists():
         state_db.unlink()
+    # Rollout names are fixed today, but the builder owns sessions/ — clear
+    # it so a stale file can never be scanned alongside the declared set.
+    shutil.rmtree(root / "sessions", ignore_errors=True)
 
     t = _CORPUS_T0_MS
     thread_a = _fake_uuid(seed, "codex-thread-a")
@@ -715,6 +724,9 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
     (task-complete-style close, §5.1).
     """
     root = Path(root)
+    # The builder owns the whole <Variant>/User tree — clear before writing
+    # so reseeding can't orphan chatSessions files a reader would scan.
+    shutil.rmtree(root / "Code" / "User", ignore_errors=True)
     t = _CORPUS_T0_MS
     variant = root / "Code" / "User"
 
