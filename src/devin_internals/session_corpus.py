@@ -184,7 +184,9 @@ def build_session_corpus(root: str | Path, *, seed: int = DEFAULT_SEED) -> Path:
         fixture["sessions"].sort(key=lambda s: s["native_id"])
 
     path = root / "manifest.json"
-    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    # Bytes, not write_text: keeps the manifest LF-stable on Windows so the
+    # committed corpus is byte-identical across platforms.
+    path.write_bytes((json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
     return path
 
 

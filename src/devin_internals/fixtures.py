@@ -398,7 +398,10 @@ def _iso_to_ms(iso: str) -> int:
 def _write_jsonl(path: Path, lines: list[str], *, trailing_newline: bool = True) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(lines) + ("\n" if trailing_newline else "")
-    path.write_text(text, encoding="utf-8")
+    # Bytes, not write_text: text mode translates \n → os.linesep on Windows,
+    # which would make regenerated corpora differ from the committed (LF)
+    # fixtures the parity contract relies on.
+    path.write_bytes(text.encode("utf-8"))
     return path
 
 
@@ -447,8 +450,8 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
              workspace_seed: str | None, events: list[dict]) -> None:
         _write_jsonl(events_file, [json.dumps(e) for e in events])
         if events_dir is not None and workspace_seed is not None:
-            (events_dir / "workspace.yaml").write_text(
-                _copilot_workspace_yaml(workspace_seed), encoding="utf-8"
+            (events_dir / "workspace.yaml").write_bytes(
+                _copilot_workspace_yaml(workspace_seed).encode("utf-8")
             )
         stamps = [e["timestamp"] for e in events]
         assert stamps == sorted(stamps), f"{key}: events must be time-ordered"
@@ -749,7 +752,7 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
     }
     snap_path = variant / "workspaceStorage" / ws_a / "chatSessions" / f"{snap_id}.json"
     snap_path.parent.mkdir(parents=True, exist_ok=True)
-    snap_path.write_text(json.dumps(snap_doc, indent=2) + "\n", encoding="utf-8")
+    snap_path.write_bytes((json.dumps(snap_doc, indent=2) + "\n").encode("utf-8"))
 
     log_id = _fake_uuid(seed, "vscode-log-b")
     ws_b = _ws_dir_name(seed, "vscode-beta")
@@ -799,7 +802,7 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
         variant / "globalStorage" / "emptyWindowChatSessions" / f"{global_id}.json"
     )
     global_path.parent.mkdir(parents=True, exist_ok=True)
-    global_path.write_text(json.dumps(global_doc, indent=2) + "\n", encoding="utf-8")
+    global_path.write_bytes((json.dumps(global_doc, indent=2) + "\n").encode("utf-8"))
 
     return {
         "root": root,

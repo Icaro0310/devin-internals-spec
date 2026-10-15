@@ -376,13 +376,31 @@ def test_reseeding_clears_orphan_sessions(tmp_path):
     }
 
 
+def _logical_dump(db_path: Path) -> str:
+    """SQLite content dump — used instead of bytes for *.sqlite files: the
+    DB header embeds the writer's SQLITE_VERSION_NUMBER, so cross-platform
+    byte equality isn't guaranteed even when the content is identical."""
+    con = sqlite3.connect(db_path)
+    try:
+        return "\n".join(con.iterdump())
+    finally:
+        con.close()
+
+
 def test_committed_corpus_matches_generator(tmp_path):
-    """The vendored fixtures/session-corpus/ must be byte-identical to a
-    fresh build — committing the artifacts without this check lets them
-    silently drift from the generator."""
+    """The vendored fixtures/session-corpus/ must be identical to a fresh
+    build — committing the artifacts without this check lets them silently
+    drift from the generator. Text artifacts compare byte-for-byte (writers
+    emit LF bytes on every platform); *.sqlite compares by logical dump."""
     committed = Path(__file__).resolve().parents[1] / "fixtures" / "session-corpus"
     build_session_corpus(tmp_path / "corpus")
     fresh = _file_listing(tmp_path / "corpus")
     vendored = _file_listing(committed)
     assert fresh.keys() == vendored.keys()
-    assert fresh == vendored
+    for name in fresh:
+        if name.endswith(".sqlite"):
+            assert _logical_dump(committed / name) == _logical_dump(
+                tmp_path / "corpus" / name
+            ), name
+        else:
+            assert fresh[name] == vendored[name], name
