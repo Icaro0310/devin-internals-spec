@@ -390,6 +390,15 @@ def ms_to_iso(ms: int) -> str:
     )
 
 
+def _reset_dir(path: Path) -> Path:
+    """Delete ``path`` and recreate it empty; failure propagates loudly —
+    no ``ignore_errors``, a stale session must never survive silently."""
+    if path.exists():
+        shutil.rmtree(path)
+    path.mkdir(parents=True)
+    return path
+
+
 def _iso_to_ms(iso: str) -> int:
     """Inverse of :func:`ms_to_iso` — the ``Z``-suffixed form only."""
     return int(datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp() * 1000)
@@ -446,14 +455,9 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     # session-state/ and history-session-state/ are pure session stores, so
-    # clearing them is surgical scope: delete and recreate the dirs, touch
-    # nothing else under root. No ignore_errors — a failed removal must fail
-    # loudly, never leave a stale session the manifest under-declares.
+    # clearing them is surgical scope: touch nothing else under root.
     for store in ("session-state", "history-session-state"):
-        d = root / store
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir()
+        _reset_dir(root / store)
     sessions: list[dict] = []
 
     def emit(key: str, layout: str, events_dir: Path | None, events_file: Path,
