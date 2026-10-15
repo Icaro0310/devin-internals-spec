@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/SESSION-SURFACES.md` — canonical spec for multi-agent session
+  sources (D-2026-10-15): closed surface vocabulary (`vscode-chat`,
+  `copilot-cli`, `codex-cli`, `devin-cli`, `devin-chat`), the canonical
+  `SessionMeta` contract, the normative `ended_at` inference chain with
+  mandatory warning codes, per-surface store layouts, and the fixture
+  corpus + parity-test model shared by the TypeScript and Python
+  implementations.
+- `docs/SCHEMA.md` — cross-note that `sessions.created_at` /
+  `last_activity_at` are epoch **seconds** on Linux v17 stores (vs ms on
+  the Windows-verified layout); readers discriminate by `< 1e12`.
 - `devin_internals.paths` — canonical store-location resolution
   (D-2026-10-08): `default_data_dir()`/`default_config_dir()` honoring
   `DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` and platform (injectable for tests),
