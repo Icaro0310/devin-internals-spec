@@ -109,6 +109,17 @@ _SOURCE_WARNINGS: dict[str, list[str]] = {
     "vscode-chat": [],
 }
 
+# Corpus text is LF-canonical: consumers byte-compare the vendored files on
+# every platform, so the corpus carries its own .gitattributes — without it a
+# core.autocrlf=true checkout would materialize CRLF.
+_GITATTRIBUTES = """\
+# Corpus artifacts are LF-canonical: the parity contract compares bytes
+# across platforms, so checkouts must never CRLF-ify text files even when
+# the runner sets core.autocrlf=true. The sqlite store is binary.
+* text eol=lf
+*.sqlite -text
+"""
+
 
 def _session_entry(surface: str, s: dict) -> dict:
     spec = _EXPECT[(surface, s["key"])]
@@ -183,6 +194,7 @@ def build_session_corpus(root: str | Path, *, seed: int = DEFAULT_SEED) -> Path:
     for fixture in manifest["fixtures"]:
         fixture["sessions"].sort(key=lambda s: s["native_id"])
 
+    (root / ".gitattributes").write_bytes(_GITATTRIBUTES.encode("utf-8"))
     path = root / "manifest.json"
     # Bytes, not write_text: keeps the manifest LF-stable on Windows so the
     # committed corpus is byte-identical across platforms.

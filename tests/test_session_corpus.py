@@ -403,4 +403,10 @@ def test_committed_corpus_matches_generator(tmp_path):
                 tmp_path / "corpus" / name
             ), name
         else:
-            assert fresh[name] == vendored[name], name
+            # Corpus text is LF-canonical (fixtures/session-corpus/
+            # .gitattributes pins eol=lf). Normalize anyway so a
+            # CRLF-materialized checkout on a core.autocrlf=true runner
+            # still compares equal to the generator's LF bytes.
+            assert fresh[name].replace(b"\r\n", b"\n") == vendored[name].replace(
+                b"\r\n", b"\n"
+            ), name
