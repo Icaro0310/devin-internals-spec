@@ -522,15 +522,6 @@ def _logical_dump(db_path: Path) -> str:
         con.close()
 
 
-def _compare_equal(committed: Path, fresh: Path) -> bool:
-    """sqlite artifacts compare by logical dump (the DB header embeds the
-    writer's SQLITE_VERSION_NUMBER); everything else compares by bytes."""
-    data = committed.read_bytes()
-    if data[:16] == SQLITE_MAGIC:
-        return _logical_dump(committed) == _logical_dump(fresh)
-    return data == fresh.read_bytes()
-
-
 def test_committed_corpus_matches_generator(tmp_path):
     """The vendored fixtures/install-states/ must be identical to a fresh
     build — committing the artifacts without this check lets them silently
