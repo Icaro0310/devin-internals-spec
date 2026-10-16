@@ -9,11 +9,41 @@
     {
       "requestId": "req-1",
       "timestamp": 1780036010000,
+      "message": {
+        "text": "xyzzy first question"
+      },
       "responseTimestamp": 1780036030000
     },
     {
       "requestId": "req-2",
       "timestamp": 1780036060000,
+      "message": {
+        "text": "xyzzy run the tests please"
+      },
+      "response": [
+        {
+          "kind": "markdownContent",
+          "content": {
+            "value": "xyzzy evidence claim: all tests passed."
+          }
+        },
+        {
+          "kind": "toolInvocation",
+          "toolCallId": "tc-snap-1",
+          "toolId": "run_in_terminal",
+          "toolSpecificData": {
+            "kind": "terminal",
+            "commandLine": {
+              "original": "pytest -q"
+            }
+          },
+          "isComplete": true,
+          "resultDetails": {
+            "exitCode": 0,
+            "output": "xyzzy 5 passed in 0.42s"
+          }
+        }
+      ],
       "responseTimestamp": 1780036090000,
       "result": {
         "timings": {

@@ -494,6 +494,10 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
 
     t = _CORPUS_T0_MS
     alpha_id = _fake_uuid(seed, "copilot-alpha")
+    # alpha doubles as the evidence fixture (docs/SESSION-EVIDENCE.md):
+    # tool.execution_start/complete are observed real event types; the
+    # assistant reply carries a 'tests passed' claim corroborated by the
+    # pytest call exiting 0 → verified.
     emit(
         "alpha",
         "session-state-dir",
@@ -505,9 +509,16 @@ def create_copilot_session_state(root: str | Path, *, seed: int = DEFAULT_SEED) 
                            {"id": alpha_id, "version": "0.0.0-fixture"}),
             _copilot_event(2, "evt-0001", t + 5_000, "user.message",
                            {"text": "xyzzy copilot marker alpha"}),
-            _copilot_event(3, "evt-0002", t + 10_000, "assistant.message",
-                           {"text": "xyzzy copilot marker alpha reply"}),
-            _copilot_event(4, "evt-0003", t + 20_000, "session.shutdown",
+            _copilot_event(3, "evt-0002", t + 8_000, "tool.execution_start",
+                           {"toolCallId": "call-alpha-1", "toolName": "bash",
+                            "input": {"command": "pytest -q"}}),
+            _copilot_event(4, "evt-0003", t + 12_000, "tool.execution_complete",
+                           {"toolCallId": "call-alpha-1", "status": "completed",
+                            "exitCode": 0, "output": "xyzzy 5 passed in 0.42s"}),
+            _copilot_event(5, "evt-0004", t + 15_000, "assistant.message",
+                           {"text": "xyzzy copilot marker alpha reply: "
+                                    "all tests passed"}),
+            _copilot_event(6, "evt-0005", t + 20_000, "session.shutdown",
                            {"reason": "fixture-close"}),
         ],
     )
@@ -594,6 +605,39 @@ def _rollout_task(kind: str, ts_ms: int) -> str:
     return _rollout_record(ts_ms, "event_msg", {"type": kind})
 
 
+def _rollout_message(ts_ms: int, role: str, text: str) -> str:
+    """A ``response_item`` message record (spec v3.4.4 shape — Responses-API
+    style ``content`` blocks; input_text for the user, output_text for the
+    agent)."""
+    block = "output_text" if role == "assistant" else "input_text"
+    return _rollout_record(
+        ts_ms, "response_item",
+        {"type": "message", "role": role,
+         "content": [{"type": block, "text": text}]},
+    )
+
+
+def _rollout_exec(ts_ms: int, call_id: str, command: list[str]) -> str:
+    """A ``response_item`` exec record — invocation side carrying the
+    ``command`` key SESSION-EVIDENCE §6.4 names. ``call_id`` pairs the
+    invocation with its output record."""
+    return _rollout_record(
+        ts_ms, "response_item",
+        {"type": "function_call", "call_id": call_id, "name": "shell",
+         "arguments": {"command": command}},
+    )
+
+
+def _rollout_exec_output(ts_ms: int, call_id: str, output: str, exit_code: int) -> str:
+    """A ``response_item`` exec record — result side carrying the
+    ``output``/``exit_code`` keys."""
+    return _rollout_record(
+        ts_ms, "response_item",
+        {"type": "function_call_output", "call_id": call_id,
+         "output": {"output": output, "exit_code": exit_code}},
+    )
+
+
 def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
     """Create a synthetic codex-cli home under ``root`` (``~/.codex`` shape).
 
@@ -670,6 +714,9 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
 
     rollout_c = _fake_uuid(seed, "codex-rollout-c")
     rollout_d = _fake_uuid(seed, "codex-rollout-d")
+    rollout_e = _fake_uuid(seed, "codex-rollout-e")  # forked — never a session
+    rollout_f = _fake_uuid(seed, "codex-rollout-f")
+    rollout_g = _fake_uuid(seed, "codex-rollout-g")
     files = {
         "rollout-closed.jsonl": [
             _rollout_meta(rollout_c, "/fixture/workspace/codex-c", t + 21_600_000),
@@ -684,7 +731,7 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
         # forked_from_id, never becomes a session.
         "rollout-forked.jsonl": [
             _rollout_meta(
-                _fake_uuid(seed, "codex-rollout-e"),
+                rollout_e,
                 "/fixture/workspace/codex-c",
                 t + 28_800_000,
                 forked_from_id=rollout_c,
@@ -697,6 +744,30 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
             _rollout_meta(thread_a, "/fixture/workspace/codex-a", t + 32_400_000),
             _rollout_task("task_started", t + 32_405_000),
             _rollout_task("task_complete", t + 32_430_000),
+        ],
+        # Evidence fixtures (docs/SESSION-EVIDENCE.md): exec-claim carries a
+        # 'tests passed' claim plus a pytest exec record exiting 0 → verified;
+        # bare-claim carries the claim text alone → no-evidence.
+        "rollout-exec-claim.jsonl": [
+            _rollout_meta(rollout_f, "/fixture/workspace/codex-e", t + 36_000_000),
+            _rollout_task("task_started", t + 36_005_000),
+            _rollout_message(t + 36_010_000, "user",
+                             "xyzzy run the test suite"),
+            _rollout_exec(t + 36_020_000, "call-exec-1", ["pytest", "-q"]),
+            _rollout_exec_output(t + 36_030_000, "call-exec-1",
+                                 "xyzzy 5 passed in 0.42s", 0),
+            _rollout_message(t + 36_040_000, "assistant",
+                             "xyzzy evidence claim: all tests passed"),
+            _rollout_task("task_complete", t + 36_045_000),
+        ],
+        "rollout-bare-claim.jsonl": [
+            _rollout_meta(rollout_g, "/fixture/workspace/codex-f", t + 39_600_000),
+            _rollout_task("task_started", t + 39_605_000),
+            _rollout_message(t + 39_610_000, "user",
+                             "xyzzy run the test suite"),
+            _rollout_message(t + 39_620_000, "assistant",
+                             "xyzzy bare claim: all tests passed"),
+            _rollout_task("task_complete", t + 39_625_000),
         ],
     }
     for name, lines in files.items():
@@ -721,6 +792,26 @@ def create_codex_store(root: str | Path, *, seed: int = DEFAULT_SEED) -> dict:
             "last_activity_ms": t + 25_205_000,
             "closed_ms": None,
             "event_count": 2,
+            "source": "rollout",
+        },
+        {
+            "key": "rollout-exec-claim",
+            "native_id": rollout_f,
+            "workspace_seed": "/fixture/workspace/codex-e",
+            "started_ms": t + 36_000_000,
+            "last_activity_ms": t + 36_045_000,
+            "closed_ms": t + 36_045_000,
+            "event_count": 7,
+            "source": "rollout",
+        },
+        {
+            "key": "rollout-bare-claim",
+            "native_id": rollout_g,
+            "workspace_seed": "/fixture/workspace/codex-f",
+            "started_ms": t + 39_600_000,
+            "last_activity_ms": t + 39_625_000,
+            "closed_ms": t + 39_625_000,
+            "event_count": 5,
             "source": "rollout",
         },
     ]
@@ -774,6 +865,10 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
 
     snap_id = _fake_uuid(seed, "vscode-snap-a")
     ws_a = _ws_dir_name(seed, "vscode-alpha")
+    # snap-a doubles as an evidence fixture (docs/SESSION-EVIDENCE.md):
+    # req-2's response carries a markdown part with a 'tests passed' claim
+    # and a toolInvocation part whose terminal command ran pytest and
+    # exited 0 → verified.
     snap_doc = {
         "version": 3,
         "sessionId": snap_id,
@@ -783,8 +878,21 @@ def create_vscode_chat_storage(root: str | Path, *, seed: int = DEFAULT_SEED) ->
         "lastMessageDate": t + 36_090_000,
         "requests": [
             {"requestId": "req-1", "timestamp": t + 36_010_000,
+             "message": {"text": "xyzzy first question"},
              "responseTimestamp": t + 36_030_000},
             {"requestId": "req-2", "timestamp": t + 36_060_000,
+             "message": {"text": "xyzzy run the tests please"},
+             "response": [
+                 {"kind": "markdownContent",
+                  "content": {"value": "xyzzy evidence claim: all tests passed."}},
+                 {"kind": "toolInvocation", "toolCallId": "tc-snap-1",
+                  "toolId": "run_in_terminal",
+                  "toolSpecificData": {"kind": "terminal",
+                                       "commandLine": {"original": "pytest -q"}},
+                  "isComplete": True,
+                  "resultDetails": {"exitCode": 0,
+                                    "output": "xyzzy 5 passed in 0.42s"}},
+             ],
              "responseTimestamp": t + 36_090_000,
              "result": {"timings": {"totalElapsed": 8000}}},
         ],

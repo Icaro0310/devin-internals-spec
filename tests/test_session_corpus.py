@@ -112,7 +112,7 @@ def test_codex_store_layout(tmp_path):
     assert all(r[3].startswith("/fixture/workspace/") for r in rows)
 
     rollouts = sorted((root / "sessions").glob("rollout-*.jsonl"))
-    assert len(rollouts) == 4
+    assert len(rollouts) == 6
     fork = _events(root / "sessions" / "rollout-forked.jsonl")
     assert fork[0]["type"] == "session_meta"
     assert fork[0]["payload"].get("forked_from_id")
@@ -124,6 +124,18 @@ def test_codex_store_layout(tmp_path):
     closed = _events(root / "sessions" / "rollout-closed.jsonl")
     kinds = [r["payload"]["type"] for r in closed if r["type"] == "event_msg"]
     assert kinds == ["task_started", "task_complete"]
+
+    # evidence fixtures (SESSION-EVIDENCE §8): exec-claim pairs a function_call
+    # with its output by call_id; bare-claim has no call records at all
+    exec_recs = _events(root / "sessions" / "rollout-exec-claim.jsonl")
+    items = [r["payload"] for r in exec_recs if r["type"] == "response_item"]
+    call = next(i for i in items if i["type"] == "function_call")
+    out = next(i for i in items if i["type"] == "function_call_output")
+    assert call["call_id"] == out["call_id"]
+    assert out["output"]["exit_code"] == 0
+    bare_recs = _events(root / "sessions" / "rollout-bare-claim.jsonl")
+    assert [r for r in bare_recs if r["type"] == "response_item"
+            and r["payload"].get("type") == "function_call"] == []
 
 
 def _replay_mutation_log(lines: list[str]) -> dict:
@@ -407,6 +419,8 @@ def test_reseeding_clears_orphan_sessions(tmp_path):
         "rollout-open.jsonl",
         "rollout-forked.jsonl",
         "rollout-duplicate.jsonl",
+        "rollout-exec-claim.jsonl",
+        "rollout-bare-claim.jsonl",
     }
     assert stray.read_text() == "keep me"
     assert not stale_db.exists()  # state_*.sqlite orphans are removed too
@@ -444,3 +458,146 @@ def test_committed_corpus_matches_generator(tmp_path):
             # Only the vendored side may legitimately carry CRLF (a
             # core.autocrlf=true checkout), so normalize it alone.
             assert fresh[name] == vendored[name].replace(b"\r\n", b"\n"), name
+
+
+# ---------------------------------------------------------------------------
+# Evidence manifest tests (docs/SESSION-EVIDENCE.md §8)
+# ---------------------------------------------------------------------------
+
+EVIDENCE_CLAIM_KINDS = {"tests", "commit", "file", "push", "http", "url"}
+EVIDENCE_VERDICTS = {"verified", "unverified", "no-evidence"}
+EVIDENCE_ROLES = {"user", "assistant", "tool", "system"}
+EVIDENCE_TOOL_KINDS = {"execute", "write", "other", "unknown"}
+
+
+def test_evidence_manifest_shape(tmp_path):
+    root = tmp_path / "corpus"
+    manifest_path = build_session_corpus(root)
+    em = json.loads((root / "evidence-manifest.json").read_text())
+
+    assert em["version"] == 1
+    manifest = json.loads(manifest_path.read_text())
+    declared = {
+        (f["surface"], s["native_id"])
+        for f in manifest["fixtures"]
+        for s in f["sessions"]
+    }
+    evidence = [(s["surface"], s["native_id"]) for s in em["sessions"]]
+    # every corpus session gets exactly one evidence entry — all-empty
+    # expectations are still declared, never omitted
+    assert set(evidence) == declared and len(evidence) == len(declared)
+
+    for s in em["sessions"]:
+        assert s["surface"] in {"copilot-cli", "codex-cli", "vscode-chat"}
+        for c in s["expected_claims"]:
+            assert c["kind"] in EVIDENCE_CLAIM_KINDS
+            assert c["verdict"] in EVIDENCE_VERDICTS
+        assert set(s["expected_tool_call_kinds"]) <= EVIDENCE_TOOL_KINDS
+        assert set(s["expected_message_roles"]) <= EVIDENCE_ROLES
+
+    # Same §8 non-scope as manifest.json: the evidence manifest asserts
+    # vocabulary-level facts, never fixture content — no claim text,
+    # commands or workspace paths may leak into it.
+    blob = (root / "evidence-manifest.json").read_text()
+    for forbidden in ("xyzzy", "pytest", "git push", "/fixture/workspace"):
+        assert forbidden not in blob
+
+
+def _codex_rollout_records(root: Path, native_id: str) -> list[dict]:
+    """The rollout file whose session_meta carries ``native_id``, if one
+    exists (thread rows have none; the fork/duplicate files are skipped
+    by §6.4 but would still match a thread id, so the caller only uses
+    this for sessions the manifest binds to the rollout leg)."""
+    for f in sorted((root / "codex" / "sessions").glob("rollout-*.jsonl")):
+        recs = _events(f)
+        if (
+            recs
+            and recs[0].get("type") == "session_meta"
+            and recs[0]["payload"].get("id") == native_id
+        ):
+            return recs
+    return []
+
+
+def test_evidence_manifest_matches_artifacts(tmp_path):
+    """Re-derive the declared evidence from the generated stores — the
+    hand-written expectations must match what the bytes actually contain."""
+    root = tmp_path / "corpus"
+    build_session_corpus(root)
+    em = json.loads((root / "evidence-manifest.json").read_text())
+
+    # copilot: *.message types → roles; a tool.execution_* pair → execute
+    for s in [s for s in em["sessions"] if s["surface"] == "copilot-cli"]:
+        events_file = next((root / "copilot").rglob(f"{s['native_id']}*"), None)
+        assert events_file is not None
+        events = _events(
+            events_file / "events.jsonl" if events_file.is_dir() else events_file
+        )
+        roles = sorted(
+            {
+                ev["type"].removesuffix(".message")
+                for ev in events
+                if ev["type"].endswith(".message")
+            }
+        )
+        assert s["expected_message_roles"] == roles
+        has_tool_pair = any(ev["type"] == "tool.execution_start" for ev in events)
+        assert s["expected_tool_call_kinds"] == (
+            ["execute"] if has_tool_pair else []
+        )
+        claims_text = " ".join(
+            ev["data"].get("text", "")
+            for ev in events
+            if ev["type"] == "assistant.message"
+        )
+        for c in s["expected_claims"]:
+            assert "tests passed" in claims_text
+            assert c["verdict"] == "verified" and has_tool_pair
+
+    # codex: response_item records → roles and execute calls
+    for s in [s for s in em["sessions"] if s["surface"] == "codex-cli"]:
+        recs = _codex_rollout_records(root, s["native_id"])
+        items = [r["payload"] for r in recs if r["type"] == "response_item"]
+        roles = sorted({i["role"] for i in items if i.get("type") == "message"})
+        calls = [i for i in items if i.get("type") == "function_call"]
+        assert s["expected_message_roles"] == roles
+        assert s["expected_tool_call_kinds"] == (["execute"] if calls else [])
+        claims_text = " ".join(
+            b.get("text", "") for i in items for b in i.get("content", [])
+        )
+        for c in s["expected_claims"]:
+            assert "tests passed" in claims_text
+            if c["verdict"] == "verified":
+                assert calls
+            elif c["verdict"] == "no-evidence":
+                assert not calls
+
+    # vscode: replay the doc, then requests → user roles, response parts →
+    # assistant roles + toolInvocation execute calls
+    for s in [s for s in em["sessions"] if s["surface"] == "vscode-chat"]:
+        session_file = next(
+            (root / "vscode-chat").rglob(f"{s['native_id']}.*"), None
+        )
+        assert session_file is not None
+        lines = session_file.read_text().splitlines()
+        doc = (
+            json.loads(session_file.read_text())
+            if session_file.suffix == ".json"
+            else _replay_mutation_log(lines[:-1])  # drop the truncated tail
+        )
+        roles: set[str] = set()
+        kinds: set[str] = set()
+        claims_text = ""
+        for req in doc.get("requests", []):
+            roles.add("user")  # every request is a user turn
+            for part in req.get("response", []):
+                if part.get("kind") == "toolInvocation" or part.get("toolCallId"):
+                    kinds.add("execute")
+                else:
+                    roles.add("assistant")
+                    claims_text += json.dumps(part)
+        assert s["expected_message_roles"] == sorted(roles)
+        assert s["expected_tool_call_kinds"] == sorted(kinds)
+        for c in s["expected_claims"]:
+            assert "tests passed" in claims_text
+            assert c["verdict"] == "verified" and kinds == {"execute"}
