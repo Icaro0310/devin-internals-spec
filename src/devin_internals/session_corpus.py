@@ -4,7 +4,10 @@
 three non-Devin surfaces — ``copilot/`` (§6.3), ``codex/`` (§6.4),
 ``vscode-chat/`` (§6.5) — plus ``manifest.json`` declaring the canonical
 fields both consumers (TypeScript ``agent-sessions`` and the Python
-``devin-search`` collectors) must produce per fixture. The committed copy at
+``devin-search`` collectors) must produce per fixture, and
+``evidence-manifest.json`` (docs/SESSION-EVIDENCE.md §8) declaring the
+auditable content layer — claims, tool-call kinds, message roles — an
+evidence extractor must produce per session. The committed copy at
 ``fixtures/session-corpus/`` is the vendored artifact other repos copy.
 
 The ``expect`` blocks are derived **by hand** from the spec, not by running a
@@ -21,8 +24,14 @@ parser:
 - §6 warning codes used here: ``no-end-marker``, ``session-open``,
   ``unknown-workspace``, ``truncated-tail``, ``duplicates``.
 
+The ``expected_*`` evidence blocks are likewise hand-derived: which claims
+the synthetic message text makes (``kind``), what the recorded tool calls
+say about them (``verdict``), and which normalized tool-call kinds and
+message roles an extractor can deterministically pull.
+
 Nothing content-shaped (message text, titles, real-looking paths) ever
-reaches the manifest — native ids and ``/fixture/workspace/*`` seeds only.
+reaches either manifest — native ids, ``/fixture/workspace/*`` seeds and
+vocabulary-level assertions only.
 """
 
 from __future__ import annotations
@@ -86,6 +95,12 @@ _EXPECT: dict[tuple[str, str], dict] = {
     ("codex-cli", "rollout-open"): {
         "id_present": True, "close": "open", "warning_codes": ["session-open"],
     },
+    ("codex-cli", "rollout-exec-claim"): {
+        "id_present": True, "close": "explicit", "warning_codes": [],
+    },
+    ("codex-cli", "rollout-bare-claim"): {
+        "id_present": True, "close": "explicit", "warning_codes": [],
+    },
     # vscode-chat §6.5 — wsDir name is the workspace hash verbatim; completed
     # last request is a task-complete-style close (§5.1)
     ("vscode-chat", "snap-a"): {
@@ -107,6 +122,89 @@ _SOURCE_WARNINGS: dict[str, list[str]] = {
     "copilot-cli": [],
     "codex-cli": ["duplicates"],
     "vscode-chat": [],
+}
+
+# ---------------------------------------------------------------------------
+# Evidence manifest (docs/SESSION-EVIDENCE.md §8)
+#
+# Closed vocabularies the evidence manifest may declare — pinned so a typo
+# can't silently widen the contract, same discipline as ALLOWED_WARNING_CODES.
+# ---------------------------------------------------------------------------
+
+# Claim kinds — the qa-pack deliverable-claim vocabulary.
+ALLOWED_CLAIM_KINDS = frozenset(
+    {"tests", "commit", "file", "push", "http", "url"}
+)
+# Manifest-side verdict vocabulary: what the corpus evidence says about the
+# claim. `verified` — a recorded tool call corroborates it (e.g. pytest exit
+# 0); `unverified` — tool evidence exists but does not corroborate;
+# `no-evidence` — the claim text exists but no tool call is recorded.
+ALLOWED_CLAIM_VERDICTS = frozenset({"verified", "unverified", "no-evidence"})
+# Normalized roles/kinds from SESSION-EVIDENCE §3/§4.
+ALLOWED_MESSAGE_ROLES = frozenset({"user", "assistant", "tool", "system"})
+ALLOWED_TOOL_CALL_KINDS = frozenset({"execute", "write", "other", "unknown"})
+
+# Per-session evidence expectations, hand-derived like _EXPECT. Every corpus
+# session gets an entry; sessions whose store carries no content layer (codex
+# `threads` rows, task-marker-only rollouts) keep all-empty expectations —
+# present and minimal, never omitted.
+_EVIDENCE_EXPECT: dict[tuple[str, str], dict] = {
+    # copilot-cli — *.message events → roles; tool.execution_* pair → one
+    # execute call; alpha's pytest exit-0 corroborates its claim.
+    ("copilot-cli", "alpha"): {
+        "claims": [{"kind": "tests", "verdict": "verified"}],
+        "tool_call_kinds": ["execute"],
+        "message_roles": ["assistant", "user"],
+    },
+    ("copilot-cli", "beta"): {
+        "claims": [], "tool_call_kinds": [],
+        "message_roles": ["assistant", "user"],
+    },
+    # flat file: user.message only — start/shutdown drive metadata, not roles
+    ("copilot-cli", "gamma"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": ["user"],
+    },
+    ("copilot-cli", "delta"): {
+        "claims": [], "tool_call_kinds": [],
+        "message_roles": ["assistant", "user"],
+    },
+    # codex-cli — threads carry metadata only; task-marker rollouts have no
+    # content records; the two claim rollouts carry response_item records.
+    ("codex-cli", "thread-a"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": [],
+    },
+    ("codex-cli", "thread-b"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": [],
+    },
+    ("codex-cli", "rollout-closed"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": [],
+    },
+    ("codex-cli", "rollout-open"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": [],
+    },
+    ("codex-cli", "rollout-exec-claim"): {
+        "claims": [{"kind": "tests", "verdict": "verified"}],
+        "tool_call_kinds": ["execute"],
+        "message_roles": ["assistant", "user"],
+    },
+    ("codex-cli", "rollout-bare-claim"): {
+        "claims": [{"kind": "tests", "verdict": "no-evidence"}],
+        "tool_call_kinds": [],
+        "message_roles": ["assistant", "user"],
+    },
+    # vscode-chat — snap-a's response parts hold the claim + a terminal
+    # toolInvocation; log-b/global-c requests carry no response content.
+    ("vscode-chat", "snap-a"): {
+        "claims": [{"kind": "tests", "verdict": "verified"}],
+        "tool_call_kinds": ["execute"],
+        "message_roles": ["assistant", "user"],
+    },
+    ("vscode-chat", "log-b"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": ["user"],
+    },
+    ("vscode-chat", "global-c"): {
+        "claims": [], "tool_call_kinds": [], "message_roles": ["user"],
+    },
 }
 
 # Corpus text is LF-canonical: consumers byte-compare the vendored files on
@@ -146,6 +244,34 @@ def _session_entry(surface: str, s: dict) -> dict:
             "started_at": ms_to_iso(s["started_ms"]),
             "ended_at": ms_to_iso(ended_ms) if ended_ms is not None else None,
         },
+    }
+
+
+def _evidence_entry(surface: str, s: dict) -> dict:
+    spec = _EVIDENCE_EXPECT[(surface, s["key"])]
+    kinds = sorted(spec["tool_call_kinds"])
+    roles = sorted(spec["message_roles"])
+    claims = sorted(spec["claims"], key=lambda c: (c["kind"], c["verdict"]))
+    assert set(kinds) <= ALLOWED_TOOL_CALL_KINDS, (
+        f"{surface}/{s['key']}: tool-call kinds outside the spec set: {kinds}"
+    )
+    assert set(roles) <= ALLOWED_MESSAGE_ROLES, (
+        f"{surface}/{s['key']}: message roles outside the spec set: {roles}"
+    )
+    for c in claims:
+        assert c["kind"] in ALLOWED_CLAIM_KINDS, (
+            f"{surface}/{s['key']}: claim kind outside the spec set: {c['kind']}"
+        )
+        assert c["verdict"] in ALLOWED_CLAIM_VERDICTS, (
+            f"{surface}/{s['key']}: claim verdict outside the spec set: "
+            f"{c['verdict']}"
+        )
+    return {
+        "surface": surface,
+        "native_id": s["native_id"],
+        "expected_claims": claims,
+        "expected_tool_call_kinds": kinds,
+        "expected_message_roles": roles,
     }
 
 
@@ -194,11 +320,33 @@ def build_session_corpus(root: str | Path, *, seed: int = DEFAULT_SEED) -> Path:
     for fixture in manifest["fixtures"]:
         fixture["sessions"].sort(key=lambda s: s["native_id"])
 
+    # SESSION-EVIDENCE §8 — one flat entry per session (surface repeated per
+    # entry), minimal all-empty expectations where the store carries no
+    # content layer. Same byte-stability rule as manifest.json.
+    evidence_sessions = [
+        _evidence_entry(surface, s)
+        for surface, built in (
+            ("copilot-cli", copilot["sessions"]),
+            ("codex-cli", codex["sessions"]),
+            ("vscode-chat", vscode["sessions"]),
+        )
+        for s in built
+    ]
+    evidence_sessions.sort(key=lambda s: (s["surface"], s["native_id"]))
+    evidence = {
+        "version": 1,
+        "spec": "docs/SESSION-EVIDENCE.md",
+        "sessions": evidence_sessions,
+    }
+
     (root / ".gitattributes").write_bytes(_GITATTRIBUTES.encode("utf-8"))
     path = root / "manifest.json"
     # Bytes, not write_text: keeps the manifest LF-stable on Windows so the
     # committed corpus is byte-identical across platforms.
     path.write_bytes((json.dumps(manifest, indent=2) + "\n").encode("utf-8"))
+    (root / "evidence-manifest.json").write_bytes(
+        (json.dumps(evidence, indent=2) + "\n").encode("utf-8")
+    )
     return path
 
 

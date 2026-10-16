@@ -39,7 +39,7 @@
             "id_present": true,
             "state": "ok",
             "warning_codes": [],
-            "event_count": 4,
+            "event_count": 6,
             "started_at": "2026-05-28T20:26:40.000Z",
             "ended_at": "2026-05-28T20:27:00.000Z"
           }
@@ -67,6 +67,30 @@
         "duplicates"
       ],
       "sessions": [
+        {
+          "native_id": "0fdeac16-1780-5567-8fa9-70475bd05e3b",
+          "workspace_seed": "/fixture/workspace/codex-f",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 5,
+            "started_at": "2026-05-29T07:26:40.000Z",
+            "ended_at": "2026-05-29T07:27:05.000Z"
+          }
+        },
+        {
+          "native_id": "7ab7382d-dfdf-5532-8368-eeb17ee3cf00",
+          "workspace_seed": "/fixture/workspace/codex-e",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 7,
+            "started_at": "2026-05-29T06:26:40.000Z",
+            "ended_at": "2026-05-29T06:27:25.000Z"
+          }
+        },
         {
           "native_id": "86d4c023-c547-5b5b-8bc3-12d801b155e0",
           "workspace_seed": "/fixture/workspace/codex-c",

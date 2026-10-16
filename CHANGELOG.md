@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/SESSION-EVIDENCE.md` — canonical spec for the session *content*
+  layer `SESSION-SURFACES.md` §8 excludes: the `SessionEvidence` model
+  (`EvidenceMessage`/`EvidenceToolCall`), the normalized role and
+  tool-call-kind vocabularies (`_EXECUTE_KINDS`), the ground-truth
+  precedence rule (structured tool evidence outranks message text),
+  per-surface extraction mappings for all five surfaces, the local-only
+  privacy contract, and the `evidence-manifest.json` parity contract —
+  the substrate a generalized qa-pack claims-vs-evidence audit builds on.
+- `fixtures/session-corpus/evidence-manifest.json` + evidence coverage in
+  the corpus: copilot `alpha` gains the observed
+  `tool.execution_start`/`tool.execution_complete` pair and a 'tests
+  passed' claim; codex gains `rollout-exec-claim.jsonl` (claim + pytest
+  exec record exiting 0 → `verified`) and `rollout-bare-claim.jsonl`
+  (claim with no tool evidence → `no-evidence`); vscode-chat `snap-a`
+  gains `message` text and `response` parts (markdown claim + terminal
+  `toolInvocation`).
+- `devin_internals.fixtures` helpers for codex `response_item` records
+  (message / `function_call` / `function_call_output` paired by
+  `call_id`).
+- 2 new tests (evidence manifest): 147 total.
+
 - `devin_internals.session_corpus` + committed `fixtures/session-corpus/` —
   the deterministic fixture corpus required by `docs/SESSION-SURFACES.md` §7:
   synthetic stores for `copilot-cli` (all three §6.3 layouts — primary
