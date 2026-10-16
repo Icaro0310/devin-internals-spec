@@ -109,12 +109,14 @@ update side never decides `kind`):
      …) — it names the envelope, not the operation, so it does **not**
      decide; continue to step 2.
 2. **Command sniff** — `command` or `cmd` carrying either a non-empty
-   string or a **list-of-strings argv vector**, top-level or nested under
-   `rawInput`, `raw_input`, `input`, `args`, `arguments`, `parameters`
-   (surface sections may name further carriers — §6.5 names
-   `toolSpecificData.commandLine.original`) → `execute`. An argv list
-   joins into a single space-separated command string for audit purposes
-   — commands are compared as text downstream, never element-wise.
+   string or a **list-of-strings argv vector**, top-level or nested one
+   level inside a dict-valued carrier under `rawInput`, `raw_input`,
+   `input`, `args`, `arguments`, `parameters`, `action` (surface
+   sections may name further carriers — §6.4 names `action.command`,
+   §6.5 names `toolSpecificData.commandLine.original`) → `execute`. An
+   argv list joins into a single space-separated command string for
+   audit purposes — commands are compared as text downstream, never
+   element-wise.
 3. A `title` containing an `_EXECUTE_KINDS` token → `execute`.
 4. Otherwise: the generic kind string from step 1, when one existed →
    `other`; none → `unknown`.
@@ -277,13 +279,16 @@ spellings beyond the observed vocabulary remain partially verified → the
     `local_shell_call_output`, `function_call_output`. Other names exist
     in the wild (`custom_tool_call`, `exec_command_end`, …) → the §4
     tolerant rule covers them.
-  - Exec invocation `command` — top level or nested under `action` — is
-    an **argv list**: join elements on spaces into the single command
-    string the §4 sniff audits (verified, qa-pack).
-  - Exec outputs: the record's `output` field is itself a **JSON
-    string** — decode it to the real dict; `metadata.exit_code` nests
-    inside that document (verified, qa-pack). An `exitCode` alias on the
-    record normalizes to `exit_code`.
+  - Exec invocation `command` — top level or nested one level under a
+    dict carrier such as `action` (a §4-named carrier —
+    `action.command: ["pytest", "-q"]` → `execute`) — is an **argv
+    list**: join elements on spaces into the single command string the
+    §4 sniff audits (verified, qa-pack).
+  - Exec outputs: the record's `output` field is a **JSON string or an
+    already-decoded dict** — decode the string to the real dict;
+    `metadata.exit_code` nests inside that document and a direct
+    `exit_code` key is read as well (verified, qa-pack). An `exitCode`
+    alias on the record normalizes to `exit_code`.
   - **Status convention for plain-text outputs (verified, qa-pack)**:
     Codex appends the status as the output's **last** line —
     `stdout…\nExit code: 0`. Only a full `Exit code: N` match on that
@@ -306,11 +311,13 @@ contract.*
 - `*.jsonl` chat files are **mutation logs, not snapshots** — replayed
   in order to reconstruct the document (verified): record kind `0`
   replaces the whole snapshot with `v`, `1` sets `v` at path `k`, `2`
-  inserts items `v` into the array at path `k` at index `i`, `3`
-  deletes path `k` (`k` is a key path, `v` the value). For one session
-  id the `.jsonl` **wins over a same-id `.json` snapshot**; unknown
-  kinds are counted and skipped; a truncated tail is tolerated
-  (`truncated-tail`). See SESSION-SURFACES §6.5.
+  **truncates the array at path `k` to index `i` first** (when `i` is
+  present) then appends items `v` — entries superseded by the
+  truncation are not evidence — `3` deletes path `k` (`k` is a key
+  path, `v` the value). For one session id the `.jsonl` **wins over a
+  same-id `.json` snapshot**; unknown kinds are counted and skipped; a
+  truncated tail is tolerated (`truncated-tail`). See SESSION-SURFACES
+  §6.5.
 - `working_dir` resolution (verified, qa-pack): the sibling
   `workspaceStorage/<wsDir>/workspace.json` `folder` field is a
   `file://` URI — URL-decode the path; `file:///C:/x` URIs strip the
@@ -328,13 +335,14 @@ contract.*
   part carrying `toolCallId`/`toolId`) → `EvidenceToolCall`. The part is
   the **whole record — invocation and result live inline**:
   `toolSpecificData` (`kind == "terminal"` → `commandLine.original`
-  counts as §4 `command` presence → `execute`; exit status nests at
-  `toolSpecificData.terminalCommandState.exitCode` — verified, qa-pack)
-  supplies the invocation side, and `resultDetails` plus
-  `isComplete`/outcome fields are the inline outcome fields → they
-  populate `update_payload` per §4 — auditors read exit status from it
-  even though no separate update record exists. Exact part shapes vary
-  by VS Code version → tolerant extraction is the contract.
+  counts as §4 `command` presence → `execute`) is the invocation side
+  and stays the raw `payload`; the inline outcome fields — exit status
+  at `toolSpecificData.terminalCommandState.exitCode` (verified,
+  qa-pack), `resultDetails`, `isComplete` — populate `update_payload`
+  per §4. `update_payload` is the **canonical home of extracted exit
+  status** — auditors read it there even though no separate update
+  record exists; `payload` never substitutes for it. Exact part shapes
+  vary by VS Code version → tolerant extraction is the contract.
 - Out of scope today (observed on disk, not spec'd):
   `chatEditingSessions/<id>/state.json`,
   `GitHub.copilot-chat/transcripts|debug-logs`, `session-store.db`.
