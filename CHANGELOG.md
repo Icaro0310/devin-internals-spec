@@ -22,11 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers/metadata only — same privacy doctrine as SESSION-SURFACES §8.
 - `devin_internals.install_states` + committed `fixtures/install-states/` —
   a deterministic corpus of synthetic *installation-state* trees, sibling
-  to `fixtures/session-corpus/`: 28 minimal fixtures covering `healthy`,
-  `absent`, `missing-store`, `empty-store`, `corrupt-store`,
-  `schema-old` (devin-cli ledger v14) and `schema-unknown` (ledger v99,
-  missing expected tables/envelope/recognizable keys) states across all
-  five surfaces, plus `install-states-manifest.json` declaring per-fixture
+  to `fixtures/session-corpus/`: 32 minimal fixtures — home-directory
+  surrogates holding each surface's real §6-relative layout — covering
+  `healthy`, `absent`, `alt-root` (store under a non-primary candidate:
+  devin-cli's legacy config root, codex's external `$CODEX_SESSIONS_DIR`
+  rollouts, vscode-chat's remote `~/.vscode-server` root),
+  `missing-store`, `empty-store`, `zero-rows` (valid devin-chat db with
+  0 messages), `corrupt-store`, `schema-old` (devin-cli ledger v14) and
+  `schema-unknown` (ledger v99, missing expected
+  tables/envelope/recognizable keys) states across all five surfaces,
+  plus `install-states-manifest.json` declaring per-fixture
   `expected_findings` — what a conformant doctor must report.
   `locked-or-unreadable` is deliberately unmodeled (not deterministically
   reproducible cross-platform). Regenerate with `python -m
