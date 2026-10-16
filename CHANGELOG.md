@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `schema-old`, `schema-unknown`, `empty-store`, `store-empty` plus the
   `not-installed` PASS-level note), per-surface version markers and
   known sets, and the CLI contract (`--surface` scoping, absent surfaces
-  grouped under "not detected", never failed). Surface checks read
-  headers/metadata only — same privacy doctrine as SESSION-SURFACES §8.
+  grouped under "not detected", never failed). Surface checks may
+  structurally parse a store to validate it (a `.json` snapshot cannot
+  be validated without parsing) but never extract or report content —
+  same privacy doctrine as SESSION-SURFACES §8, sharpened.
 - `devin_internals.install_states` + committed `fixtures/install-states/` —
   a deterministic corpus of synthetic *installation-state* trees, sibling
   to `fixtures/session-corpus/`: 32 minimal fixtures — home-directory
