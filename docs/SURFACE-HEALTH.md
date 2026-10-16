@@ -30,10 +30,14 @@ opaque/unverified — treat as opaque.
   `immutable=1`, a constructed-but-failed handle `close()`d before
   retry); files are read, never written; one broken surface never blocks
   the others — it degrades to its own findings only.
-- **Checks never read message CONTENT** — same privacy doctrine as
-  SESSION-SURFACES §8. Magic bytes, the first-line envelope shape, table
-  names, version ledgers/pragmas, and row *counts* are in scope; message
-  bodies, titles, and payload text are never inspected.
+- **Checks never extract or report message CONTENT** — same privacy
+  doctrine as SESSION-SURFACES §8, sharpened for this layer: a surface
+  check MAY structurally parse a store to validate it — a `.json`
+  snapshot cannot be validated without parsing, and parsing necessarily
+  consumes the bytes — but it MUST NOT extract, retain, or report
+  content. Findings carry statuses, counts, and store paths only —
+  never message bodies, titles, or payload text. The prohibition is on
+  content *use*, not on the parser consuming bytes.
 - **Global checks stay tool-agnostic by design.** Disk space,
   filesystem permissions, PATH resolution, config syntax — the doctor
   owns those as its own sections. They are not per-surface findings and
@@ -80,6 +84,10 @@ or merged as there specified) and its store artifacts:
   is nothing to open.
 - ≥1 anchor exists → `PASS`.
 
+A store at **any** documented candidate root marks the surface present —
+the probe walks the full §6 candidate list per surface and never stops
+after the first missing candidate.
+
 "Anchor" is the per-surface located store of §4 — a store file
 (`cli/sessions.db`, `state_*.sqlite`) **or** a store container directory
 (`acp-messages/`, `session-state/`, `history-session-state/`,
@@ -91,10 +99,13 @@ whether it holds anything is `sane`'s verdict, not `present`'s.
 - SQLite stores: the file opens `mode=ro` and its first 16 bytes are the
   magic `SQLite format 3\x00` **(verified)**.
 - JSONL stores (`events.jsonl`, rollouts, `*.jsonl` mutation logs): the
-  first non-empty line parses as JSON. A malformed **tail** is not
-  corruption — SESSION-SURFACES `truncated-tail` is a session-parse
+  first non-empty line parses as JSON — structure is validated; its
+  content is never extracted or reported (§1). A malformed **tail** is
+  not corruption — SESSION-SURFACES `truncated-tail` is a session-parse
   concern; `readable` only proves the store opens.
-- JSON snapshots (`chatSessions/*.json`): the whole document parses.
+- JSON snapshots (`chatSessions/*.json`): the whole document parses —
+  necessarily consuming message bytes in transit; the parse validates
+  structure only and nothing content-shaped may leave the checker (§1).
 - Directory stores: the directory lists and ≥1 artifact inside it passes
   its own check.
 
@@ -121,7 +132,12 @@ Compare the store's version marker (§4) against the known set:
 - A store directory/container that exists but holds **no artifacts** →
   `WARN` `store-empty` ("installed but unused").
 - Where counts are cheaply available (row `COUNT(*)`, file globs — §4),
-  a store with **zero** sessions/messages → `WARN` `store-empty`.
+  a store with **zero** sessions/messages → `WARN` `store-empty`. The
+  three verdicts are distinct: a valid-but-rowless `devin-chat` database
+  is `store-empty`, not `empty-store` (which is the zero-byte case).
+- A store whose §4-documented countable structures are absent — e.g. a
+  `schema-unknown` shape — yields no signal; `sane` emits **nothing**,
+  per §2's nothing-to-evaluate rule.
 - Otherwise → `PASS`.
 
 ## 4. Per-surface layout — what each rung inspects
@@ -129,9 +145,14 @@ Compare the store's version marker (§4) against the known set:
 `<data>`/`<config>`/`<home>` are the SESSION-SURFACES §6 platform roots;
 the corpus (§7) mirrors them as fixture-relative paths.
 
-### 4.1 `devin-cli` — `<data>/devin/cli/sessions.db`
+### 4.1 `devin-cli` — `<root>/devin/cli/sessions.db`
 
-- present: `devin/` root + the db file.
+- present: `cli/sessions.db` under **any** §6.1 `<root>` candidate —
+  `%APPDATA%` else `~/AppData/Roaming` (win32) · `~/Library/Application
+  Support` (darwin) · on linux *each of* `$XDG_DATA_HOME` else
+  `~/.local/share`, `$XDG_CONFIG_HOME` else `~/.config`, **and** `~/`
+  (the legacy home root). A db under any candidate — including a legacy
+  config/home root — marks the surface installed.
 - readable/schema: SQLite magic; version marker is
   `MAX(refinery_schema_history.version)` — `app_state.schema_compat_version`
   mirrors it (SCHEMA.md §1). **`PRAGMA user_version` is not the schema
@@ -143,18 +164,24 @@ the corpus (§7) mirrors them as fixture-relative paths.
 
 ### 4.2 `devin-chat` — `<config>/Devin/User/acp-messages/<uuid>.db`
 
-- present: the `Devin` (or legacy lowercase `devin`) config root holding
-  the `User/acp-messages/` container.
+- present: a `User/acp-messages/` container under **any** §6.2 candidate
+  dir — `%APPDATA%/Devin` else `~/AppData/Roaming/Devin` (win32) ·
+  `~/Library/Application Support/Devin` (darwin) · on linux
+  `~/.config/Devin`, `~/.config/devin`, `~/devin` (and the same under
+  `$XDG_CONFIG_HOME` overrides).
 - readable: each `.db` inside passes SQLite magic.
 - schema: per db, `meta` + `messages` tables present → `PASS`
   (`acp-v0` shape — SESSION-SURFACES §6.2); missing → `schema-unknown`.
-- sane: ≥1 `.db` present (a present-but-empty `acp-messages/` dir →
-  `store-empty`; a zero-byte `.db` → `empty-store`).
+- sane: the container's `.db` count plus, per db, `COUNT(*)` on
+  `messages` where the table exists — an empty `acp-messages/` dir →
+  `store-empty`; a zero-byte `.db` → `empty-store`; a **valid db whose
+  `messages` table holds 0 rows** → `store-empty`; otherwise `PASS`.
 
 ### 4.3 `copilot-cli` — `<home>/.copilot/` (+ `$COPILOT_DIR`/`$COPILOT_HOME`)
 
-- present: the root holding a `session-state/` or
-  `history-session-state/` container (§6.3 layouts).
+- present: **any** §6.3 root — `$COPILOT_DIR`, `$COPILOT_HOME`, or
+  `~/.copilot` — holding a `session-state/` or `history-session-state/`
+  container (all existing roots merge, §6.3).
 - readable: every `events.jsonl`/flat file's first line parses.
 - schema: the first record is an object carrying the verified envelope
   `{id, parentId, timestamp, type, data}` → `PASS`; valid JSON missing
@@ -162,23 +189,33 @@ the corpus (§7) mirrors them as fixture-relative paths.
 - sane: ≥1 session artifact (a present-but-empty `session-state/` →
   `store-empty`).
 
-### 4.4 `codex-cli` — `<home>/.codex/` (+ `$CODEX_HOME`)
+### 4.4 `codex-cli` — `<home>/.codex/` (+ `$CODEX_HOME`, `$CODEX_SESSIONS_DIR`)
 
-- present: the root holding a `state_*.sqlite` file or a
-  `sessions/`/`archived_sessions/` rollout container.
+- present: the codex root — `$CODEX_HOME` else `~/.codex` — holding a
+  `state_*.sqlite` file or a `sessions/`/`archived_sessions/` rollout
+  container, **or `$CODEX_SESSIONS_DIR` holding rollout JSONL**: rollout
+  sessions may live entirely outside the codex root (§6.4), so a
+  rollout-only store is still present.
 - readable: the selected `state_<N>.sqlite` (largest N, §6.4) passes
   SQLite magic; rollout JSONL first lines parse.
 - schema: `N` numeric **and** a `threads` table present → `PASS`
   (`state-<N>`); a non-numeric suffix or a readable db without `threads`
   → `schema-unknown`. N is not upper-bounded — a *larger* N is the
   update path, not unknown.
-- sane: `COUNT(*)` on `threads` > 0, or ≥1 rollout file.
+- sane: `COUNT(*)` on `threads` > 0, or ≥1 rollout file; when neither
+  signal is computable — e.g. a `schema-unknown` db without `threads`
+  and no rollouts — `sane` emits nothing (§3.4).
 
 ### 4.5 `vscode-chat` — `<config>/Code[ - Insiders]/User/…`
 
-- present: a variant root holding a `workspaceStorage/*/chatSessions/`
-  or `globalStorage/{emptyWindow,transferred}ChatSessions/` container
-  (§6.5).
+- present: a `chatSessions` container —
+  `workspaceStorage/*/chatSessions/` or
+  `globalStorage/{emptyWindow,transferred}ChatSessions/` — under **any**
+  §6.5 root: `<base>` = `env.appdata` else `AppData/Roaming` (win32),
+  `Library/Application Support` (darwin), `.config` (linux), times the
+  `Code` and `Code - Insiders` variants, **plus the remote root**
+  `~/.vscode-server/data/User/` (§6.5). A store under the remote root
+  alone marks the surface present.
 - readable: `.json` docs parse whole; `.jsonl` mutation logs' first line
   parses.
 - schema: snapshot docs carry `requests` (or another §6.5 recognizable
@@ -233,13 +270,32 @@ Sibling of `fixtures/session-corpus/`, same vendored-artifact discipline:
   `python -m devin_internals.install_states fixtures/install-states`
   rewrites the tree wholesale. Fixture stores are *minimal*: only what
   each check needs to see (a sqlite with the right tables/ledger, a tiny
-  jsonl/json, an empty file, an empty dir).
-- Each fixture dir is a **root surrogate** holding one surface's
-  §6-relative store layout (`devin/cli/sessions.db`,
-  `Devin/User/acp-messages/*.db`, `.copilot/session-state/…`,
-  `.codex/state_*.sqlite`, `Code/User/workspaceStorage/*/chatSessions/…`),
-  so an absent fixture is an empty dir plus `.gitkeep` — no candidate
-  root.
+  jsonl/json, an empty file, an empty dir). Where a builder reuses a
+  session-store generator (`create_sessions_db`,
+  `create_acp_messages_db`) it is for the **verbatim DDL**, so `schema`
+  validates the real store shape — rows are `{"synthetic": true}`
+  placeholders and a single placeholder session suffices for `sane`'s
+  count rung; no fixture carries real content.
+- Each fixture dir is a **home-directory surrogate** holding one
+  surface's §6-relative store layout under its real default roots
+  (`.local/share/devin/…`, `.config/Devin/…`, `.copilot/…`,
+  `.codex/…`, `.config/Code/…`, `.vscode-server/data/User/…`), so an
+  absent fixture is an empty dir plus `.gitkeep` — no candidate root.
+  Env-var candidates are modeled by their default paths, except
+  `$CODEX_SESSIONS_DIR`, which is modeled by a `codex-sessions/` dir
+  beside `.codex/` (rollouts may live entirely outside the codex root,
+  §4.4). The `alt-root` fixtures place a healthy store under a
+  non-primary documented candidate — devin-cli's legacy config root
+  (`.config/devin/…`), codex's external rollout dir, vscode-chat's
+  remote root — so a doctor that probes only the primary path drifts
+  loudly.
+- Two known fixture-modeling limits, documented rather than hidden:
+  the `schema-old` store carries a **v14 ledger over v17 DDL**
+  (`create_sessions_db` only knows the verified v17 layout) — it
+  exercises old-version *classification*, not old-DDL compatibility
+  (the v15/v16 layout gap is SCHEMA.md §4); and `locked-or-unreadable`
+  is unmodelable — POSIX mode bits are advisory or ignored on Windows
+  runners and OS/SQLite locks are timing-dependent.
 - The corpus carries its own `.gitattributes` (LF-canonical text, binary
   `*.sqlite`/`*.db`) and `.gitignore` (`!*.db` — synthetic stores are
   vendored against the repo-level `*.db` ignore), same self-contained
@@ -253,11 +309,10 @@ Sibling of `fixtures/session-corpus/`, same vendored-artifact discipline:
   `test_evidence_manifest_matches_artifacts`) and byte-compares the
   committed corpus against a fresh build — logical `iterdump` for valid
   sqlite artifacts, bytes for the rest.
-- States modeled: `healthy`, `absent`, `missing-store`, `empty-store`,
-  `corrupt-store`, `schema-old`, `schema-unknown`. **`locked-or-unreadable`
-  is deliberately unmodeled**: POSIX mode bits are advisory or ignored on
-  Windows runners and OS/SQLite locks are timing-dependent — no
-  deterministic fixture exists.
+- States modeled: `healthy`, `absent`, `alt-root`, `missing-store`,
+  `empty-store`, `zero-rows`, `corrupt-store`, `schema-old`,
+  `schema-unknown`. **`locked-or-unreadable` is deliberately
+  unmodeled** — see above.
 
 ## 8. Explicit non-scope
 

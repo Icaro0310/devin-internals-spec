@@ -120,11 +120,18 @@ def _sqlite_file_findings(path: Path) -> str | None:
 
 
 def _devin_cli(root: Path) -> list[dict]:
-    root_dir = root / "devin"
-    db = root_dir / "cli" / "sessions.db"
-    if not root_dir.is_dir():
+    # §4.1: every linux candidate root — canonical data root, legacy
+    # config root, legacy home root.
+    roots = [
+        root / ".local" / "share" / "devin",
+        root / ".config" / "devin",
+        root / "devin",
+    ]
+    dbs = [r / "cli" / "sessions.db" for r in roots]
+    if not any(r.is_dir() for r in roots):
         return [_f("present", "PASS", note="not-installed")]
-    if not db.exists():
+    db = next((p for p in dbs if p.exists()), None)
+    if db is None:
         return [_f("present", "WARN", code="store-missing")]
     findings = [_f("present", "PASS")]
     verdict = _sqlite_file_findings(db)
@@ -158,7 +165,13 @@ def _devin_cli(root: Path) -> list[dict]:
 
 
 def _devin_chat(root: Path) -> list[dict]:
-    roots = [root / "Devin", root / "devin"]
+    # §4.2: config-root candidates — canonical `Devin`, legacy lowercase
+    # `devin`, legacy home root.
+    roots = [
+        root / ".config" / "Devin",
+        root / ".config" / "devin",
+        root / "devin",
+    ]
     if not any(r.is_dir() for r in roots):
         return [_f("present", "PASS", note="not-installed")]
     acp_dirs = [r / "User" / "acp-messages" for r in roots]
@@ -233,10 +246,13 @@ def _copilot_cli(root: Path) -> list[dict]:
 
 
 def _codex_cli(root: Path) -> list[dict]:
+    # §4.4: the codex root plus the external $CODEX_SESSIONS_DIR surrogate
+    # (`codex-sessions/`) — rollouts may live entirely outside `.codex`.
     root_dir = root / ".codex"
-    if not root_dir.is_dir():
+    ext_dir = root / "codex-sessions"
+    if not root_dir.is_dir() and not ext_dir.is_dir():
         return [_f("present", "PASS", note="not-installed")]
-    state_dbs = sorted(root_dir.glob("state_*.sqlite"))
+    state_dbs = sorted(root_dir.glob("state_*.sqlite")) if root_dir.is_dir() else []
     rollout_dirs = [
         d
         for d in (root_dir / "sessions", root_dir / "archived_sessions")
@@ -245,7 +261,9 @@ def _codex_cli(root: Path) -> list[dict]:
     rollouts = sorted(
         p for d in rollout_dirs for p in d.glob("*.jsonl") if p.is_file()
     )
-    if not state_dbs and not rollout_dirs:
+    if ext_dir.is_dir():
+        rollouts += sorted(p for p in ext_dir.glob("*.jsonl") if p.is_file())
+    if not state_dbs and not rollout_dirs and not ext_dir.is_dir():
         return [_f("present", "WARN", code="store-missing")]
     findings = [_f("present", "PASS")]
     if not state_dbs:
@@ -272,6 +290,10 @@ def _codex_cli(root: Path) -> list[dict]:
     else:
         findings.append(_f("schema", "PASS"))
     n = _count_rows(db, "threads")
+    if n is None and not rollouts:
+        # No countable signal — e.g. a schema-unknown shape with no
+        # `threads` table and no rollouts: sane emits nothing (§3.4).
+        return findings
     if n == 0 and not rollouts:
         findings.append(_f("sane", "WARN", code="store-empty"))
     else:
@@ -280,7 +302,13 @@ def _codex_cli(root: Path) -> list[dict]:
 
 
 def _vscode_chat(root: Path) -> list[dict]:
-    variants = [root / "Code", root / "Code - Insiders"]
+    # §4.5: `Code`/`Code - Insiders` under the config surrogate plus the
+    # remote root `~/.vscode-server/data/User`.
+    variants = [
+        root / ".config" / "Code",
+        root / ".config" / "Code - Insiders",
+        root / ".vscode-server" / "data",
+    ]
     users = [v / "User" for v in variants if v.is_dir()]
     if not users:
         return [_f("present", "PASS", note="not-installed")]
@@ -358,12 +386,31 @@ def test_fixture_layouts(tmp_path):
     build_install_states(tmp_path / "corpus")
     root = tmp_path / "corpus"
 
-    # devin-cli: the file artifact under the data-root surrogate
-    assert (root / "devin-cli" / "healthy" / "devin" / "cli"
-            / "sessions.db").is_file()
+    # devin-cli: the file artifact under the canonical data-root path
+    assert (
+        root / "devin-cli" / "healthy" / ".local" / "share" / "devin"
+        / "cli" / "sessions.db"
+    ).is_file()
+    # alt-root: same store under the legacy ~/.config candidate (§4.1)
+    assert (
+        root / "devin-cli" / "alt-root" / ".config" / "devin" / "cli"
+        / "sessions.db"
+    ).is_file()
     # missing-store: root exists (credentials.toml), no cli/ store
-    missing = root / "devin-cli" / "missing-store" / "devin"
+    missing = root / "devin-cli" / "missing-store" / ".local" / "share" / "devin"
     assert missing.is_dir() and not (missing / "cli").exists()
+
+    # codex alt-root: rollouts only under the $CODEX_SESSIONS_DIR
+    # surrogate — no .codex dir at all (§4.4)
+    alt = root / "codex-cli" / "alt-root"
+    assert not (alt / ".codex").exists()
+    assert list((alt / "codex-sessions").glob("rollout-*.jsonl"))
+
+    # vscode alt-root: remote ~/.vscode-server/data/User (§4.5)
+    assert list(
+        (root / "vscode-chat" / "alt-root" / ".vscode-server" / "data"
+         / "User").rglob("chatSessions/*.json")
+    )
 
     # absent fixtures: only a .gitkeep — no candidate root at all
     for surface in SURFACES:
@@ -372,22 +419,41 @@ def test_fixture_layouts(tmp_path):
 
     # empty-store fixtures: zero-byte file stores vs empty container dirs
     assert (
-        root / "devin-cli" / "empty-store" / "devin" / "cli" / "sessions.db"
+        root / "devin-cli" / "empty-store" / ".local" / "share" / "devin"
+        / "cli" / "sessions.db"
     ).stat().st_size == 0
     assert (
         root / "codex-cli" / "empty-store" / ".codex" / "state_4.sqlite"
     ).stat().st_size == 0
     for surface, container in (
-        ("devin-chat", root / "devin-chat" / "empty-store" / "Devin"
-         / "User" / "acp-messages"),
+        ("devin-chat", root / "devin-chat" / "empty-store" / ".config"
+         / "Devin" / "User" / "acp-messages"),
         ("copilot-cli", root / "copilot-cli" / "empty-store" / ".copilot"
          / "session-state"),
     ):
         assert [p.name for p in container.iterdir()] == [".gitkeep"]
 
+    # zero-rows: a valid ACP db whose messages table holds 0 rows
+    db = next(
+        (root / "devin-chat" / "zero-rows" / ".config" / "Devin" / "User"
+         / "acp-messages").glob("*.db")
+    )
+    con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
+    try:
+        assert {"meta", "messages"} <= {
+            r[0]
+            for r in con.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        assert con.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 0
+    finally:
+        con.close()
+
     # corrupt-store: non-empty, wrong magic / unparsable
     assert not _has_sqlite_magic(
-        root / "devin-cli" / "corrupt-store" / "devin" / "cli" / "sessions.db"
+        root / "devin-cli" / "corrupt-store" / ".local" / "share" / "devin"
+        / "cli" / "sessions.db"
     )
     assert not _has_sqlite_magic(
         root / "codex-cli" / "corrupt-store" / ".codex" / "state_4.sqlite"
@@ -399,7 +465,10 @@ def test_fixture_layouts(tmp_path):
         ("schema-unknown", 99),
         ("healthy", LATEST_KNOWN_SCHEMA),
     ):
-        db = root / "devin-cli" / state / "devin" / "cli" / "sessions.db"
+        db = (
+            root / "devin-cli" / state / ".local" / "share" / "devin"
+            / "cli" / "sessions.db"
+        )
         con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
         try:
             assert con.execute(
@@ -472,6 +541,11 @@ def test_manifest_shape(tmp_path):
     assert ("devin-cli", "schema-old") in states
     assert ("devin-cli", "missing-store") in states
     assert ("copilot-cli", "missing-store") in states
+    # non-primary candidates each get an alt-root fixture (§4)
+    for surface in ("devin-cli", "codex-cli", "vscode-chat"):
+        assert (surface, "alt-root") in states
+    # §3.4 third empty case: valid store, zero countable rows
+    assert ("devin-chat", "zero-rows") in states
 
     # nothing content-shaped reaches the manifest — vocabulary only
     blob = manifest_path.read_text()
@@ -487,7 +561,7 @@ def test_install_states_manifest_matches_artifacts(tmp_path):
     build_install_states(root)
     m = json.loads((root / "install-states-manifest.json").read_text())
 
-    assert len(m["fixtures"]) >= 25  # every planned (surface, state) pair
+    assert len(m["fixtures"]) >= 30  # every planned (surface, state) pair
     for fixture in m["fixtures"]:
         fixture_root = root / fixture["store_path"]
         derived = _CHECKERS[fixture["surface"]](fixture_root)

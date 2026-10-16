@@ -19,6 +19,29 @@
     },
     {
       "surface": "codex-cli",
+      "state": "alt-root",
+      "store_path": "codex-cli/alt-root",
+      "expected_findings": [
+        {
+          "check": "present",
+          "status": "PASS"
+        },
+        {
+          "check": "readable",
+          "status": "PASS"
+        },
+        {
+          "check": "schema",
+          "status": "PASS"
+        },
+        {
+          "check": "sane",
+          "status": "PASS"
+        }
+      ]
+    },
+    {
+      "surface": "codex-cli",
       "state": "corrupt-store",
       "store_path": "codex-cli/corrupt-store",
       "expected_findings": [
@@ -89,10 +112,6 @@
           "check": "schema",
           "status": "WARN",
           "code": "schema-unknown"
-        },
-        {
-          "check": "sane",
-          "status": "PASS"
         }
       ]
     },
@@ -291,6 +310,30 @@
       ]
     },
     {
+      "surface": "devin-chat",
+      "state": "zero-rows",
+      "store_path": "devin-chat/zero-rows",
+      "expected_findings": [
+        {
+          "check": "present",
+          "status": "PASS"
+        },
+        {
+          "check": "readable",
+          "status": "PASS"
+        },
+        {
+          "check": "schema",
+          "status": "PASS"
+        },
+        {
+          "check": "sane",
+          "status": "WARN",
+          "code": "store-empty"
+        }
+      ]
+    },
+    {
       "surface": "devin-cli",
       "state": "absent",
       "store_path": "devin-cli/absent",
@@ -299,6 +342,29 @@
           "check": "present",
           "status": "PASS",
           "note": "not-installed"
+        }
+      ]
+    },
+    {
+      "surface": "devin-cli",
+      "state": "alt-root",
+      "store_path": "devin-cli/alt-root",
+      "expected_findings": [
+        {
+          "check": "present",
+          "status": "PASS"
+        },
+        {
+          "check": "readable",
+          "status": "PASS"
+        },
+        {
+          "check": "schema",
+          "status": "PASS"
+        },
+        {
+          "check": "sane",
+          "status": "PASS"
         }
       ]
     },
@@ -426,6 +492,29 @@
           "check": "present",
           "status": "PASS",
           "note": "not-installed"
+        }
+      ]
+    },
+    {
+      "surface": "vscode-chat",
+      "state": "alt-root",
+      "store_path": "vscode-chat/alt-root",
+      "expected_findings": [
+        {
+          "check": "present",
+          "status": "PASS"
+        },
+        {
+          "check": "readable",
+          "status": "PASS"
+        },
+        {
+          "check": "schema",
+          "status": "PASS"
+        },
+        {
+          "check": "sane",
+          "status": "PASS"
         }
       ]
     },

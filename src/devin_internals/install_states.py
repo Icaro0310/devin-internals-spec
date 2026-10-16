@@ -13,19 +13,33 @@ empty, corrupt and versioned states, judged by SURFACE-HEALTH findings.
 Fixture bytes are minimal: only what each rung needs to see (a sqlite with
 the right tables/ledger, a tiny jsonl/json, an empty file, an empty dir).
 
-Each fixture dir is a *root surrogate* holding the surface's
-SESSION-SURFACES §6-relative store layout (``devin/cli/sessions.db``,
-``Devin/User/acp-messages/*.db``, ``.copilot/session-state/…``,
-``.codex/state_*.sqlite``, ``Code/User/workspaceStorage/*/chatSessions/…``),
-so an ``absent`` fixture is an empty dir plus ``.gitkeep`` — no candidate
-root exists at all.
+Each fixture dir is a *home-directory surrogate* holding the surface's
+SESSION-SURFACES §6-relative store layout under its real default roots
+(``.local/share/devin/…``, ``.config/Devin/…``, ``.copilot/…``,
+``.codex/…``, ``.config/Code/…``, ``.vscode-server/data/User/…``), so an
+``absent`` fixture is an empty dir plus ``.gitkeep`` — no candidate root
+exists at all. Env-var candidates are modeled by their default paths,
+except ``$CODEX_SESSIONS_DIR``, which is modeled by a ``codex-sessions/``
+dir beside ``.codex/`` (§4.4 — rollouts may live entirely outside the
+codex root). ``alt-root`` fixtures place a healthy store under a
+non-primary documented candidate so a doctor that probes only the
+primary path drifts loudly.
 
 The ``expected_findings`` blocks are hand-derived from the spec's ladder
 semantics (§2): ``present`` → ``readable`` → ``schema`` → ``sane``; the
-first FAIL stops the ladder; rungs with nothing to evaluate emit nothing;
-``not-installed`` is a PASS-level note, never a failure. ``locked-or-
-unreadable`` is deliberately unmodeled — no deterministic cross-platform
-fixture exists (§7).
+first FAIL stops the ladder; rungs with nothing to evaluate emit nothing
+(a ``schema-unknown`` codex store has no ``threads`` and no rollouts —
+``sane`` emits no finding); ``not-installed`` is a PASS-level note, never
+a failure. ``locked-or-unreadable`` is deliberately unmodeled — no
+deterministic cross-platform fixture exists (§7).
+
+Where a builder reuses a session-store generator it is for the verbatim
+DDL — ``schema`` validates the real store shape — while rows stay
+synthetic placeholders (``{"synthetic": true}`` payloads, one placeholder
+session suffices for ``sane``'s count rung). Consequently the
+``schema-old`` store carries a **v14 ledger over v17 DDL**: it exercises
+old-version *classification*, not old-DDL compatibility (the v15/v16
+layout gap is SCHEMA.md §4).
 """
 
 from __future__ import annotations
@@ -39,6 +53,7 @@ from pathlib import Path
 from devin_internals import fixtures
 from devin_internals.fixtures import (
     _CORPUS_T0_MS,
+    ACP_MESSAGES_DDL,
     CODEX_THREADS_DDL,
     DEFAULT_SEED,
     LATEST_KNOWN_SCHEMA,
@@ -46,6 +61,8 @@ from devin_internals.fixtures import (
     _copilot_event,
     _copilot_workspace_yaml,
     _fake_uuid,
+    _rollout_meta,
+    _rollout_task,
     _ws_dir_name,
 )
 
@@ -74,11 +91,15 @@ ALLOWED_NOTES = frozenset({"not-installed"})
 # the sole surface with a version ordering below the known floor.
 # `missing-store` covers both store shapes: a file artifact missing under
 # an existing root (devin-cli) and a directory store missing under an
-# existing root (copilot-cli).
+# existing root (copilot-cli). `alt-root` places a healthy store under a
+# non-primary documented candidate (devin-cli's legacy config root,
+# codex's `$CODEX_SESSIONS_DIR`, vscode-chat's remote `.vscode-server`
+# root); `zero-rows` is a valid-but-empty devin-chat db (§3.4 third case).
 _PLAN: dict[str, list[str]] = {
     "devin-cli": [
         "healthy",
         "absent",
+        "alt-root",
         "missing-store",
         "empty-store",
         "corrupt-store",
@@ -89,6 +110,7 @@ _PLAN: dict[str, list[str]] = {
         "healthy",
         "absent",
         "empty-store",
+        "zero-rows",
         "corrupt-store",
         "schema-unknown",
     ],
@@ -103,6 +125,7 @@ _PLAN: dict[str, list[str]] = {
     "codex-cli": [
         "healthy",
         "absent",
+        "alt-root",
         "empty-store",
         "corrupt-store",
         "schema-unknown",
@@ -110,6 +133,7 @@ _PLAN: dict[str, list[str]] = {
     "vscode-chat": [
         "healthy",
         "absent",
+        "alt-root",
         "empty-store",
         "corrupt-store",
         "schema-unknown",
@@ -146,7 +170,7 @@ def _finding(check: str, status: str, code: str | None = None,
 
 def _expected(surface: str, state: str) -> list[dict]:
     """Hand-derived expected ladder output per SURFACE-HEALTH §2 semantics."""
-    if state == "healthy":
+    if state in {"healthy", "alt-root"}:
         findings = [
             _finding("present", "PASS"),
             _finding("readable", "PASS"),
@@ -174,7 +198,22 @@ def _expected(surface: str, state: str) -> list[dict]:
             _finding("present", "PASS"),
             _finding("readable", "PASS"),
             _finding("schema", "WARN", code="schema-unknown"),
-            _finding("sane", "PASS"),
+        ]
+        # codex schema-unknown: no `threads` table and no rollouts — sane
+        # has no countable signal and emits nothing (§3.4). The other
+        # schema-unknown fixtures still carry a countable signal (a
+        # `sessions` table, a `.db` inside `acp-messages/`, a session dir,
+        # a chatSessions file).
+        if surface != "codex-cli":
+            findings.append(_finding("sane", "PASS"))
+    elif state == "zero-rows":
+        # A valid acp db whose `messages` table holds 0 rows — store-empty
+        # via the cheap COUNT, distinct from both empty-store shapes (§3.4).
+        findings = [
+            _finding("present", "PASS"),
+            _finding("readable", "PASS"),
+            _finding("schema", "PASS"),
+            _finding("sane", "WARN", code="store-empty"),
         ]
     elif state == "empty-store":
         # readable/schema emit nothing — nothing to evaluate (§2); sane
@@ -238,14 +277,22 @@ def _valid_sqlite(path: Path, ddl: str, rows: list[tuple], table: str,
 
 
 def _build_devin_cli(state_dir: Path, state: str, seed: int) -> None:
-    db = state_dir / "devin" / "cli" / "sessions.db"
+    # Canonical linux data root: ~/.local/share/devin/cli/sessions.db.
+    db = state_dir / ".local" / "share" / "devin" / "cli" / "sessions.db"
     if state == "absent":
         _absent(state_dir)
     elif state == "missing-store":
         # The data root exists (credentials.toml is a real sibling file,
         # devin_internals.paths) but cli/sessions.db was never written.
-        _write_text(state_dir / "devin" / "credentials.toml",
-                    "[fixture]\nsynthetic = true\n")
+        _write_text(state_dir / ".local" / "share" / "devin"
+                    / "credentials.toml", "[fixture]\nsynthetic = true\n")
+    elif state == "alt-root":
+        # A healthy store under the legacy ~/.config config root — §6.1
+        # candidate probing must find it there too (§4.1).
+        fixtures.create_sessions_db(
+            state_dir / ".config" / "devin" / "cli" / "sessions.db",
+            schema_version=LATEST_KNOWN_SCHEMA, seed=seed, n_sessions=1,
+        )
     elif state == "empty-store":
         _write(db, b"")
     elif state == "corrupt-store":
@@ -253,21 +300,39 @@ def _build_devin_cli(state_dir: Path, state: str, seed: int) -> None:
     else:
         version = {
             "healthy": LATEST_KNOWN_SCHEMA,
-            # ledger MAX(version) below MIN_SUPPORTED_SCHEMA → schema-old
+            # ledger MAX(version) below MIN_SUPPORTED_SCHEMA → schema-old.
+            # Modeling limit: create_sessions_db only knows the verified
+            # v17 DDL, so this exercises old-version *classification*, not
+            # old-DDL compatibility (SCHEMA.md §4).
             "schema-old": MIN_SUPPORTED_SCHEMA - 1,
             # ledger MAX(version) above LATEST_KNOWN_SCHEMA → schema-unknown
             "schema-unknown": 99,
         }[state]
+        # One placeholder session is all `sane`'s count rung needs; the
+        # verbatim v17 DDL is what `schema` validates.
         fixtures.create_sessions_db(db, schema_version=version,
-                                    seed=seed, n_sessions=2)
+                                    seed=seed, n_sessions=1)
 
 
 def _build_devin_chat(state_dir: Path, state: str, seed: int) -> None:
-    acp_dir = state_dir / "Devin" / "User" / "acp-messages"
+    # Canonical linux config root: ~/.config/Devin/User/acp-messages/*.db.
+    acp_dir = state_dir / ".config" / "Devin" / "User" / "acp-messages"
     if state == "absent":
         _absent(state_dir)
     elif state == "empty-store":
         _empty_dir(acp_dir)
+    elif state == "zero-rows":
+        # A valid ACP store — meta+messages present, zero message rows.
+        db = acp_dir / f"{_fake_uuid(seed, 'acp-zero-rows')}.db"
+        db.parent.mkdir(parents=True, exist_ok=True)
+        con = sqlite3.connect(db)
+        with con:
+            con.executescript(ACP_MESSAGES_DDL)
+            con.execute(
+                "INSERT INTO meta(key, value) VALUES (?, ?)",
+                ("fixture.session_id", db.stem),
+            )
+        con.close()
     elif state == "corrupt-store":
         _write(acp_dir / f"{_fake_uuid(seed, 'acp-corrupt')}.db",
                _CORRUPT_SQLITE)
@@ -323,6 +388,18 @@ def _build_codex_cli(state_dir: Path, state: str, seed: int) -> None:
     db = state_dir / ".codex" / "state_4.sqlite"
     if state == "absent":
         _absent(state_dir)
+    elif state == "alt-root":
+        # $CODEX_SESSIONS_DIR surrogate: rollouts live entirely outside
+        # .codex — a rollout-only store is still present (§4.4).
+        t = _CORPUS_T0_MS
+        rid = _fake_uuid(seed, "codex-external")
+        lines = [
+            _rollout_meta(rid, "/fixture/workspace/codex-ext", t),
+            _rollout_task("task_started", t + 5_000),
+            _rollout_task("task_complete", t + 30_000),
+        ]
+        _write_text(state_dir / "codex-sessions" / f"rollout-{rid}.jsonl",
+                    "\n".join(lines) + "\n")
     elif state == "empty-store":
         _write(db, b"")
     elif state == "corrupt-store":
@@ -343,12 +420,33 @@ def _build_codex_cli(state_dir: Path, state: str, seed: int) -> None:
 
 
 def _build_vscode_chat(state_dir: Path, state: str, seed: int) -> None:
+    # Canonical linux root: ~/.config/Code/User/…
     chat_sessions = (
-        state_dir / "Code" / "User" / "workspaceStorage"
+        state_dir / ".config" / "Code" / "User" / "workspaceStorage"
         / _ws_dir_name(seed, f"vscode-{state}") / "chatSessions"
     )
     if state == "absent":
         _absent(state_dir)
+    elif state == "alt-root":
+        # Remote root: ~/.vscode-server/data/User/… (SESSION-SURFACES §6.5).
+        remote = (
+            state_dir / ".vscode-server" / "data" / "User"
+            / "workspaceStorage" / _ws_dir_name(seed, "vscode-remote")
+            / "chatSessions"
+        )
+        doc = {
+            "version": 3,
+            "sessionId": _fake_uuid(seed, "vscode-remote"),
+            "creationDate": _CORPUS_T0_MS,
+            "requests": [
+                {"requestId": "req-1", "timestamp": _CORPUS_T0_MS + 5_000}
+            ],
+        }
+        _write_text(
+            remote / f"{_fake_uuid(seed, 'vscode-remote')}.json",
+            json.dumps(doc, indent=2) + "\n",
+        )
+        return
     elif state == "empty-store":
         _empty_dir(chat_sessions)
     else:
