@@ -64,7 +64,7 @@ One `SessionEvidence` per session:
 | `tool_call_id` | string | the store's call id; a deterministic synthetic id (e.g. `<surface>-call-<n>`) when the store pairs call/result positionally instead |
 | `kind` | enum | `execute` \| `write` \| `other` \| `unknown` — normalized per §4 |
 | `payload` | dict \| null | decoded invocation-side JSON object; `null` when absent *or* undecodable — an unparsable row still emits a call, never silently dropped |
-| `update_payload` | dict \| null | decoded result/update-side JSON object; `null` when absent, interrupted, or undecodable |
+| `update_payload` | dict \| null | decoded result/update-side JSON object — or the inline result fields when the surface records no separate update (§4); `null` when absent, interrupted, or undecodable |
 | `ts_ms` | int \| null | epoch ms; `null` when the store records no per-call time (devin-cli §6.1) |
 
 Extractors run against a store read by the SESSION-SURFACES §3 read
@@ -96,29 +96,44 @@ every other surface skips the undecodable record and counts `partial-parse`.
 Per `EvidenceToolCall`, inspect the decoded invocation `payload` (the
 update side never decides `kind`):
 
-1. Read `kind`, then `type`, then `tool` — first present string wins;
-   match case-insensitively:
+1. Read `kind`, then `type`, then `tool` — first present string wins,
+   matched case-insensitively. A **specific known kind** decides
+   immediately:
    - `_EXECUTE_KINDS = {execute, run, terminal, shell, bash, exec, command}`
      → `execute`
    - `_WRITE_KINDS = {edit, write, create, delete, move, rename}` → `write`
-   - any other string → `other`
-2. No kind/type/tool key: a `title` containing an `_EXECUTE_KINDS` token →
-   `execute`.
-3. Still nothing: **sniff** — `command` or `cmd` present as a non-empty
-   string (top-level or nested under `rawInput`, `raw_input`, `input`,
-   `args`, `arguments`, `parameters`) → `execute`.
-4. Otherwise → `unknown`.
+   - any other string is a **generic record name** (`function_call`,
+     `custom_tool_call`, `tool_call`, `toolInvocation`, `toolInvocation*`,
+     …) — it names the envelope, not the operation, so it does **not**
+     decide; continue to step 2.
+2. **Command sniff** — `command` or `cmd` carrying either a non-empty
+   string or a **list-of-strings argv vector**, top-level or nested under
+   `rawInput`, `raw_input`, `input`, `args`, `arguments`, `parameters`
+   (surface sections may name further carriers — §6.5 names
+   `toolSpecificData.commandLine.original`) → `execute`. An argv list
+   joins into a single space-separated command string for audit purposes
+   — commands are compared as text downstream, never element-wise.
+3. A `title` containing an `_EXECUTE_KINDS` token → `execute`.
+4. Otherwise: the generic kind string from step 1, when one existed →
+   `other`; none → `unknown`.
+
+Only the specific known kinds outrank the command sniff — a `write`-kind
+call carrying a cleanup command stays `write`; a `function_call` carrying
+`pytest -q` is `execute`, never `other`.
 
 Call/result **pairing**: surfaces that emit separate invocation and update
 records pair them into one `EvidenceToolCall` — the invocation record
 becomes `payload`, the update record `update_payload`. Pair keys, in
 preference order: `toolCallId`, `tool_call_id`, `callId`, `call_id`, `id`.
 An update record with no invocation emits a call whose `payload` is null
-(interrupted calls are evidence too). `status`/exit codes are *not* part of
-this model — the auditor derives them from `update_payload`; the observed
-convention is exit-beats-status (`_meta.terminal_exit` /
-`_meta["cognition.ai/terminal_exit"]` `exit_code` outranks a `completed`
-status string, verified live on devin-cli).
+(interrupted calls are evidence too). **Surfaces whose invocation record
+carries the result inline** populate `update_payload` from those inline
+result/outcome fields — a missing second record is not missing result
+evidence (§6.5 `toolInvocation.resultDetails`). `status`/exit codes are
+*not* part of this model — the auditor derives them from
+`update_payload`; the observed convention is exit-beats-status
+(`_meta.terminal_exit` / `_meta["cognition.ai/terminal_exit"]` `exit_code`
+outranks a `completed` status string, verified live on devin-cli).
 
 ## 5. Ground-truth precedence (normative)
 
@@ -175,8 +190,12 @@ message text is ranked below the structured `update_payload` it duplicates.
   `timestamp` (ISO) converted to epoch-ms.
 - `tool.execution_start` / `tool.execution_complete` are **observed real
   event types** (16 of each in a 191-event real-store census). `start` →
-  `payload`, `complete` → `update_payload`, paired per §4
-  (`data.toolCallId`-style keys, else the event `id`).
+  `payload`, `complete` → `update_payload`, paired strictly by
+  `data.toolCallId` — the field the census-verified pair shares. The
+  envelope `id` is per-event and **never** pairs. When `toolCallId` is
+  absent the fallback is **sequential pairing within the session** — a
+  `complete` binds the most recent unpaired `start` — counted as one
+  `partial-parse`.
 - **What is unverified**: the discovery census confirmed *type names*
   only — `data` contents were never read. Extraction of commands/status is
   therefore the §4 tolerant rule only: `command`/`cmd` keys (possibly
@@ -188,10 +207,22 @@ message text is ranked below the structured `update_payload` it duplicates.
 
 ### 6.4 `codex-cli` — `state_<N>.sqlite` + `sessions/rollout-*.jsonl` **(spec v3.4.4)**
 
-- `threads` rows carry **no content** — a thread-only session emits empty
-  `messages`/`tool_calls` unless its rollout file is locatable (the
-  `threads.rollout_path` link is observed on some installs, unverified on
-  this corpus — treat as absent).
+- `threads` rows and rollout files are **complementary legs of the same
+  session — merged by session id, never a precedence fight**: the
+  `threads` row supplies metadata (`native_id`, `cwd`,
+  `created_at`/`updated_at`), the rollout JSONL supplies the evidence
+  (`messages`, `tool_calls`). The §6.4 `duplicates` skip is a
+  session-*listing* rule; it does not suppress evidence — a rollout whose
+  `session_meta.id` equals a thread id merges into that thread's
+  `SessionEvidence`. The link is `threads.rollout_path` where the column
+  carries it (observed on some installs, unverified on this corpus),
+  else scanning `sessions/`/`archived_sessions/` for the matching
+  `session_meta.id`. Two readable files sharing an id still collapse —
+  first readable copy supplies the evidence.
+- A thread with **no locatable rollout** emits empty
+  `messages`/`tool_calls` plus `partial-parse` ("metadata-only session —
+  no rollout file found"): the row proves the session existed, it does
+  not prove nothing happened.
 - Rollout records: `{timestamp, type, payload}` envelope (`ordinal` seen
   in the wild — extra keys ignored):
   - `response_item` payloads of `type: message` → `EvidenceMessage`:
@@ -200,13 +231,13 @@ message text is ranked below the structured `update_payload` it duplicates.
   - `type: function_call` / `custom_tool_call` → `EvidenceToolCall`
     `payload`; `function_call_output` → `update_payload`, paired by
     `call_id`. Exec records carry `command`+`output` keys — the §4 sniff
-    classifies them `execute`; `exit_code`/`output` inside the output
-    payload carry the result.
+    classifies them `execute` (argv lists included); `exit_code`/`output`
+    inside the output payload carry the result.
   - `session_meta`, `event_msg` (`task_started`, `task_complete`,
     `token_count`, …), `turn_context`, `reasoning`, `compaction` → not
     evidence rows (task markers drive SURFACES §6.4 metadata).
-  - Forks are ignored and `duplicates` resolve per §6.4 — first readable
-    copy wins; the skipped file contributes no evidence.
+  - Forks are ignored entirely — a `forked_from_id` record never merges
+    into the parent session.
 - Inner key spellings of exec payloads are only partially verified → the
   §4 tolerant rule is the contract, not a fallback.
 
@@ -221,11 +252,14 @@ message text is ranked below the structured `update_payload` it duplicates.
 - `request.response` parts: markdown/text-bearing parts concatenate into
   `assistant` messages (`ts_ms` from `responseTimestamp`); a part whose
   `kind` names a tool invocation (`toolInvocation` observed; tolerate any
-  part carrying `toolCallId`/`toolId`) → `EvidenceToolCall`.
-  Terminal-specific data (`toolSpecificData.kind == "terminal"`,
-  `commandLine.original`, `resultDetails`) carries command + result —
-  §4 sniff → `execute`. Exact part shapes vary by VS Code version →
-  tolerant extraction is the contract.
+  part carrying `toolCallId`/`toolId`) → `EvidenceToolCall`. The part is
+  the **whole record — invocation and result live inline**:
+  `toolSpecificData` (`kind == "terminal"` → `commandLine.original`
+  counts as §4 `command` presence → `execute`) supplies the invocation
+  side, and `resultDetails` plus `isComplete`/outcome fields populate
+  `update_payload` per §4 — auditors read exit status from it even though
+  no separate update record exists. Exact part shapes vary by VS Code
+  version → tolerant extraction is the contract.
 - Out of scope today (observed on disk, not spec'd):
   `chatEditingSessions/<id>/state.json`,
   `GitHub.copilot-chat/transcripts|debug-logs`, `session-store.db`.
