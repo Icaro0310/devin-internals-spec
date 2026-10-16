@@ -76,6 +76,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `docs/SESSION-EVIDENCE.md` §6 — store-layout facts verified by the
+  qa-pack evidence providers (devin-assure #74) are now recorded as
+  **(verified)** with attribution: a "verification status" note under
+  each surface header names the verifying implementation (qa-pack
+  provider, 191-event real-store census, agent-sessions TS parser,
+  `devin_internals` parsers). §6.3 gains the copilot event-envelope
+  keys, `data.toolCallId` pairing, `data.success` completions, message
+  text keys and the `workspace.yaml` seed; §6.4 gains the codex rollout
+  type vocabulary (`local_shell_call`, `exec_command_begin`,
+  shell-named `function_call`, `local_shell_call_output`,
+  `function_call_output`), `session_meta` keys, the JSON-string `output`
+  field nesting `metadata.exit_code`, argv-list commands and the
+  last-line `Exit code: N` status convention (bare-integer outputs are
+  stdout, never status); §6.5 gains the vscode-chat mutation-kind
+  semantics, `workspace.json` `folder` URI resolution (Windows
+  drive-letter slash artifact, hashed-id never-fabricated rule) and
+  `toolSpecificData.terminalCommandState.exitCode`; §6.1's
+  `tool_call_state` no-per-call-timestamp gap is re-confirmed.
 - Refreshed the generated `Part of the DEVIN ecosystem` block: journey recuration v2 (six paths, zero repeats, `Local-first ops` label, `devin-bridge` in DevOps).
 - Ecosystem journey recuration recorded (six curated audiences); `For: Developers, Maintainers` kept intentionally — maintainers remain an audience even though no curated journey targets them.
 
