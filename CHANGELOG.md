@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `actions/download-artifact` bumped to v8.0.2 in `pypi-publish.yml`;
+  `tests/test_pypi_publish_handoff.py` now pins the `dist` handoff
+  contract (`needs: verify`, artifact name/path, v4+-compatible hash pin,
+  merged-origin guard, OIDC upload shape).
+
 ### Added
 
 - `docs/SURFACE-HEALTH.md` — canonical spec for per-surface *installation
