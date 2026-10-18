@@ -47,11 +47,14 @@ def test_dist_download_contract_and_pin():
     assert step is not None
     assert step["with"]["name"] == "dist"
     assert step["with"]["path"] == "dist/"
-    m = re.search(r"actions/download-artifact@([0-9a-f]{40})\s*#\s*v(\d+)", raw)
-    assert m, "download-artifact must be hash-pinned with a version comment"
+    uses = step["uses"]
+    m = re.fullmatch(r"actions/download-artifact@([0-9a-f]{40})", uses)
+    assert m, "download-artifact must be hash-pinned"
+    pin = re.search(re.escape(uses) + r"\s*#\s*v?(\d+)", raw)
+    assert pin, "the pin must carry a version comment on its own line"
     # Producer uploads with upload-artifact v4; v8 consumers cannot read
     # pre-v4 artifacts, so the pin must stay on a v4+ major.
-    assert int(m.group(2)) >= 4
+    assert int(pin.group(1)) >= 4
 
 
 def test_publish_origin_guard_and_oidc_upload():
