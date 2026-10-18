@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `pr-approve` caller bumped from v1.1 to v1.3 in `auto-approve.yml`
+  (devin-powerups reusable; the referenced workflow file is identical at
+  both tags, so no caller-visible change).
+
 ### Added
 
 - `docs/SURFACE-HEALTH.md` — canonical spec for per-surface *installation
