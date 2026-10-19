@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin_internals/corpus/` package data + `devin_internals.corpus_access` —
+  both committed corpora (`fixtures/session-corpus/`,
+  `fixtures/install-states/`) now ship inside the wheel under
+  `devin_internals/corpus/`, so downstream consumers (devin-assure
+  qa-pack, devin-explore doctor) can drop their vendored copies and the
+  drift risk that came with them. `corpus_root(name)` returns the
+  `importlib.resources` `Traversable`; `materialize_corpus(dest, name)`
+  copies a corpus to a real directory for consumers that need real files
+  (sqlite stores, fixture trees passed as paths). A `corpus` extra
+  documents the contract (stdlib-only, no dependencies). The committed
+  `fixtures/` copies remain the source of truth; a drift test
+  byte-compares the packaged tree against them.
+- 8 new tests (corpus access + packaged↔committed drift guard): 162
+  total.
+
 - `docs/SURFACE-HEALTH.md` — canonical spec for per-surface *installation
   health*, the substrate the generalized agent environment doctor
   (devin-doctor) reports on: the ordered check ladder
