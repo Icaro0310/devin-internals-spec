@@ -233,6 +233,28 @@ c.set("last_ts", newest_ts)
 c.commit()
 ```
 
+## Packaged synthetic corpora (`devin_internals.corpus_access`)
+
+The session-corpus and install-states fixtures ship inside the wheel —
+downstream repos consume them by contract instead of vendoring copies.
+
+```python
+from devin_internals.corpus_access import corpus_root, materialize_corpus
+
+corpus_root()                              # packaged Traversable root
+materialize_corpus(tmp_path, "session-corpus")   # real files for tests
+materialize_corpus(tmp_path, "install-states")
+```
+
+`materialize_corpus(dest, name)` copies the packaged tree into `dest`
+(zip-import safe) and refuses a non-empty destination; unknown or
+path-shaped names are rejected. The committed `fixtures/` trees remain
+the source of truth — a drift-guard test keeps the packaged copy
+byte-identical. The generator modules (`python -m
+devin_internals.session_corpus` / `install_states`) can also rebuild
+both corpora from scratch; `pip install "devin-internals-spec[corpus]"`
+is the marker extra documenting the contract.
+
 ## Works with Devin alone (Devin-only mode)
 
 The spec is documentation plus a small local validation library: it reads
