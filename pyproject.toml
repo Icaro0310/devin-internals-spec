@@ -14,12 +14,27 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.9"]
+# Marker extra documenting the packaged-corpus contract — corpus access is
+# stdlib-only (importlib.resources), so the extra carries no dependencies.
+corpus = []
 
 [project.scripts]
 devin-inspect = "devin_internals.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Both committed corpora (session-corpus, install-states) ship as package
+# data. Hidden entries need explicit `.*` segments — recursive `**`/`*
+# globs skip dotfiles and never descend into dotdirs (.codex, .config,
+# .local, .copilot, .vscode-server, .gitkeep leaves).
+[tool.setuptools.package-data]
+devin_internals = [
+    "corpus/**/*",
+    "corpus/**/.*",
+    "corpus/**/.*/**",
+    "corpus/**/.*/**/.*",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
