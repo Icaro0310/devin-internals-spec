@@ -34,7 +34,7 @@ jobs:
       # Ship the exact dist/ that passed the verify gate — no second build.
       # The download/publish handoff below is pinned end-to-end by
       # tests/test_pypi_publish_handoff.py (needs/artifact names/pins).
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2 — name/path contract pinned in tests/test_pypi_publish_handoff.py
         with:
           name: dist
           path: dist/
