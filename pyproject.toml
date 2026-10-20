@@ -13,7 +13,7 @@ authors = [{ name = "Icaro0310" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.9"]
+dev = ["pytest>=8", "ruff>=0.9", "pyyaml>=6"]
 # Marker extra documenting the packaged-corpus contract — corpus access is
 # stdlib-only (importlib.resources), so the extra carries no dependencies.
 corpus = []
