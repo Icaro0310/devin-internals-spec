@@ -13,8 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/test_pypi_publish_handoff.py` now pins the `dist` handoff
   contract (`needs: verify`, artifact name/path, v4+-compatible hash pin,
   merged-origin guard, OIDC upload shape).
+- `pr-approve` caller bumped from v1.1 to v1.3 in `auto-approve.yml`
+  (devin-powerups reusable; the referenced workflow file is identical at
+  both tags, so no caller-visible change).
 
 ### Added
+
+- `devin_internals/corpus/` package data + `devin_internals.corpus_access` —
+  both committed corpora (`fixtures/session-corpus/`,
+  `fixtures/install-states/`) now ship inside the wheel under
+  `devin_internals/corpus/`, so downstream consumers (devin-assure
+  qa-pack, devin-explore doctor) can drop their vendored copies and the
+  drift risk that came with them. `corpus_root(name)` returns the
+  `importlib.resources` `Traversable`; `materialize_corpus(dest, name)`
+  copies a corpus to a real directory for consumers that need real files
+  (sqlite stores, fixture trees passed as paths). A `corpus` extra
+  documents the contract (stdlib-only, no dependencies). The committed
+  `fixtures/` copies remain the source of truth; a drift test
+  byte-compares the packaged tree against them.
+- 8 new tests (corpus access + packaged↔committed drift guard): 162
+  total.
 
 - `docs/SURFACE-HEALTH.md` — canonical spec for per-surface *installation
   health*, the substrate the generalized agent environment doctor
