@@ -13,9 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tests/test_pypi_publish_handoff.py` now pins the `dist` handoff
   contract (`needs: verify`, artifact name/path, v4+-compatible hash pin,
   merged-origin guard, OIDC upload shape).
-- `pr-approve` caller bumped from v1.1 to v1.3 in `auto-approve.yml`
-  (devin-powerups reusable; the referenced workflow file is identical at
-  both tags, so no caller-visible change).
+- `pr-approve` caller bumped from v1.1 to v1.6 in `auto-approve.yml`
+  (the v1.6 gate adds cross-repo fix anchors and gate-eligible
+  concurrency) and gains the `pull_request_review_comment` trigger so
+  fix-commit replies re-evaluate the gate on the same head;
+  `tests/test_auto_approve_gate.py` pins the caller contract.
 
 ### Added
 
