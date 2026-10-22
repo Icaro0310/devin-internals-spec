@@ -21,6 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Three spec ledgers under `docs/`:
+  - `docs/SCHEMA-VERSIONS.md` — schema-version drift matrix across Devin
+    releases (per-store version marker, latest verified version, first-seen
+    release, evidence) plus the drift protocol for when a new version lands
+    (issue #1). Documents the live-verified `refinery_schema_history`
+    semantics: `applied_on` is an install-time replay timestamp, not a
+    release date, and `app_state.schema_compat_version` does not reliably
+    mirror `MAX(version)`.
+  - `docs/CONFIG-FILES.md` — config/bookkeeping file formats across the
+    data/config roots: Devin-owned files (`config.json`, `mcp_config.json`,
+    `api.env`, `credentials.toml`, `installation_id`) and ecosystem-owned
+    `.devin-ecosystem/` files (`machine-id`, `devin-profile.json`,
+    `hooks.json`, `scheduled.json`, `plans.jsonl`, `metrics/`), each marked
+    verified/contract/unverified.
+  - `docs/CREDENTIALS-TOML.md` — the `credentials.toml` spec: candidate
+    locations, flat-TOML format, verified key set, and reader rules
+    (read-only, secrets never published).
+  All three verified against a live install on 2026-10-22 (Linux).
 - `devin_internals/corpus/` package data + `devin_internals.corpus_access` —
   both committed corpora (`fixtures/session-corpus/`,
   `fixtures/install-states/`) now ship inside the wheel under

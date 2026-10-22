@@ -7,6 +7,9 @@ Devin keeps everything on disk in undocumented SQLite databases whose schema cha
 ## Docs
 - [README](https://github.com/Icaro0310/devin-internals-spec/blob/main/README.md): full documentation
 - [docs/SPEC.md](https://github.com/Icaro0310/devin-internals-spec/blob/main/docs/SPEC.md): the spec — only items marked "verified" should be relied on
+- [docs/SCHEMA-VERSIONS.md](https://github.com/Icaro0310/devin-internals-spec/blob/main/docs/SCHEMA-VERSIONS.md): schema-version drift matrix across Devin releases (tracked as new builds land)
+- [docs/CONFIG-FILES.md](https://github.com/Icaro0310/devin-internals-spec/blob/main/docs/CONFIG-FILES.md): config/bookkeeping file formats across the data/config roots
+- [docs/CREDENTIALS-TOML.md](https://github.com/Icaro0310/devin-internals-spec/blob/main/docs/CREDENTIALS-TOML.md): the `credentials.toml` spec (location, key set, reader rules)
 
 ## Key commands
 - `devin-inspect schema <sessions.db>`: print the schema-detection contract (JSON)
