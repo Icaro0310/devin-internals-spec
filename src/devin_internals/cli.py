@@ -21,8 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from devin_internals import fixtures
-from devin_internals import cflite
+from devin_internals import cflite, fixtures
 from devin_internals.contract import check_contract
 from devin_internals.parsers import (
     AcpMessagesStore,

@@ -17,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+
 from devin_internals import cflite
 from devin_internals.schema import SchemaError, detect_schema_version
 
