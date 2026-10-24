@@ -6,6 +6,7 @@ Subcommands (all read-only, all accept ``--json``):
 - ``sessions <sessions.db>``    list sessions (id, title, cwd, created_at, status)
 - ``health <devin-data-dir>``   locate the three stores, report versions/counts
 - ``make-fixture <out>``        write deterministic synthetic stores for tests
+- ``cflite-promote``            promote CFL minimized crashes into ``fuzz/corpus/``
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from devin_internals import fixtures
+from devin_internals import cflite, fixtures
 from devin_internals.contract import check_contract
 from devin_internals.parsers import (
     AcpMessagesStore,
@@ -220,6 +221,35 @@ def cmd_contract(args: argparse.Namespace) -> int:
     return 0 if report["status"] == "ok" else 1
 
 
+def cmd_cflite_promote(args: argparse.Namespace) -> int:
+    if args.max_bytes > cflite.MAX_CRASH_BYTES:
+        print(
+            f"error: --max-bytes above {cflite.MAX_CRASH_BYTES} would "
+            "promote entries the replay pack rejects",
+            file=sys.stderr,
+        )
+        return 2
+    corpus = args.corpus_dir or cflite.default_corpus_dir()
+    if args.run_id:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            try:
+                cflite.download_run_artifacts(args.run_id, Path(td))
+            except cflite.CfliteError as exc:
+                print(f"error: {exc}", file=sys.stderr)
+                return 1
+            report = cflite.promote(
+                Path(td), corpus, max_bytes=args.max_bytes,
+                run_id=args.run_id, dry_run=args.dry_run)
+    else:
+        report = cflite.promote(
+            args.crashes_dir, corpus, max_bytes=args.max_bytes,
+            dry_run=args.dry_run)
+    _print_json(report)
+    return 2 if report["errors"] else 0
+
+
 def cmd_make_fixture(args: argparse.Namespace) -> int:
     out = Path(args.output).expanduser()
     created: dict[str, Any]
@@ -320,6 +350,25 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("devin_data_dir",
                    help="Devin data root (contains cli/ and User/)")
     p.set_defaults(func=cmd_contract)
+
+    p = sub.add_parser(
+        "cflite-promote",
+        help="promote ClusterFuzzLite minimized crashes into the fuzz "
+             "corpus (crash-<sha256> + manifest.json)",
+    )
+    src = p.add_mutually_exclusive_group(required=True)
+    src.add_argument("--crashes-dir", type=Path,
+                     help="dir of already-unpacked crash artifacts")
+    src.add_argument("--run-id", type=str,
+                     help="workflow run id — downloads artifacts via gh")
+    p.add_argument("--corpus-dir", type=Path, default=None,
+                   help="target corpus (default: <repo>/fuzz/corpus or "
+                        f"${cflite.CORPUS_ENV})")
+    p.add_argument("--max-bytes", type=int, default=cflite.MAX_CRASH_BYTES,
+                   help="per-entry size cap (default: %(default)s)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="report what would be promoted; write nothing")
+    p.set_defaults(func=cmd_cflite_promote)
 
     return parser
 
