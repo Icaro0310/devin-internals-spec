@@ -1,0 +1,20 @@
+{
+  "entries": {},
+  "schema": 1,
+  "seeds": {
+    "seed-corrupt-header": {
+      "bytes": 31,
+      "source": "corpus/install-states/devin-cli/corrupt-store/sessions.db"
+    },
+    "seed-empty": {
+      "bytes": 0,
+      "source": "corpus/install-states/devin-cli/empty-store/sessions.db"
+    },
+    "seed-schema-unknown": {
+      "bytes": 106496,
+      "source": "corpus/install-states/devin-cli/schema-unknown/sessions.db"
+    }
+  },
+  "tool": "devin-internals",
+  "version": "0.3.2"
+}
