@@ -68,11 +68,23 @@ and are not enumerated in the spec.
    version — that failure **is** the signal; do not silence it.
 2. Inspect the new DDL (`sqlite_master` + `PRAGMA table_info`), diff against
    `docs/SCHEMA.md`, and mark each changed field with its version tag.
-3. Bump `LATEST_KNOWN_SCHEMA` in `src/devin_internals/schema.py` only after
-   field-level verification; add a `schema_version=N` fixture row in
-   `fixtures.py` and regenerate corpus fixtures that stamp a version.
+3. Bump `LATEST_KNOWN_SCHEMA` in `src/devin_internals/schema.py` and add a
+   `schema_version=N` fixture row in `fixtures.py`, regenerating corpus
+   fixtures that stamp a version — this is *canary registration* (see
+   below); it records the observation, it does not claim field
+   verification.
 4. Record the new row in the §1 matrix with its release date and evidence.
 5. CHANGELOG entry; the version bump and the doc update land in the same PR.
+
+`LATEST_KNOWN_SCHEMA` and `VERIFIED_SCHEMA` split the ledger's two
+meanings: `LATEST_KNOWN_SCHEMA` is the newest version **observed** in the
+wild; `VERIFIED_SCHEMA` is the newest version **verified field-by-field**
+(step 2). Canary registration — recording an observed-but-unverified
+version into `LATEST_KNOWN_SCHEMA` — is a documented step of this
+protocol, not an exception carved out of it. A gap such as
+`LATEST_KNOWN_SCHEMA=18` with `VERIFIED_SCHEMA=17` therefore means the
+canary is registered and the v18 field diff is still pending;
+`VERIFIED_SCHEMA` bumps only when step 2 completes.
 
 ## 5. Known gaps (explicit)
 
