@@ -19,15 +19,19 @@ The schema version is `MAX(version)` in `refinery_schema_history`.
 v17 install (2026-10-22, Linux) — it does **not** reliably mirror
 `MAX(version)`; the ledger is the marker of record.
 
-Supported range: `MIN_SUPPORTED_SCHEMA..LATEST_KNOWN_SCHEMA` = **15..17**
-(`src/devin_internals/schema.py`). Anything outside `1..17` raises
+Supported range: `MIN_SUPPORTED_SCHEMA..LATEST_KNOWN_SCHEMA` = **15..18**
+(`src/devin_internals/schema.py`). Anything outside `1..18` raises
 `UnknownSchemaVersionError`; 1..14 open but report `supported: false`.
+Known/supported ≠ verified: the detector reports `verified: true` only at
+`VERIFIED_SCHEMA` = **17** — v18 is registered as observed drift
+(the devin-dream D06 canary fixture below), never field-inspected.
 
 | version | first landed | contents (high level) | evidence |
 |---|---|---|---|
 | v1–v15 | 2026-05-06 | base schema through `add_hidden_column`-era migrations; field list not published (ledger rows are treated as row content) | release dates recorded in `docs/SPEC.md`; v15 supported, never field-verified |
 | v16 | 2026-07-05 | `sessions.metadata` (session JSON metadata column) | inferred from v16→v17 delta; **unverified** at field level |
 | v17 | 2026-09-14 | `subagent_heads` table + `prompt_history` indexes; full field-by-field spec in `docs/SCHEMA.md` | **(verified)** 2026-09-29 Windows, re-verified live 2026-10-22 Linux (17 ledger rows) |
+| v18 | drift fixture | ledger row `18` observed in the devin-dream D06 *schema-drift canary* `sessions.db`; inner layout not field-inspected | **(observed drift, unverified)** — `fixtures/schema-versions/sessions-v18.db` vendored byte-verbatim from devin-assure's golden corpus, sha256-pinned in `manifest.json`; `LATEST_KNOWN_SCHEMA` accepts it, `VERIFIED_SCHEMA` stays 17 |
 
 ### Ledger-semantics caveats (verified live, 2026-10-22)
 

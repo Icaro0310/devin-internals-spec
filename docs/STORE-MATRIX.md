@@ -8,11 +8,12 @@ coverage index, not a contract — where a per-store spec doc exists
 `docs/CONFIG-FILES.md`, `docs/CREDENTIALS-TOML.md`) that doc stays
 normative; this matrix repeats status, never semantics.
 
-Store roots follow `devin_internals.paths`: `<data>` = data root
-(`~/.local/share/devin` on Linux), `<config>` = UI config root
-(`~/.config/Devin` on Linux), `<ecosystem>` = `<config>/.devin-ecosystem/`,
-`<home>` = home dir — platform table and env overrides in
-`src/devin_internals/paths.py` and `docs/CONFIG-FILES.md`.
+Store roots follow `devin_internals.paths`: `<data>` = data root,
+`<config>` = UI config root, `<ecosystem>` = `<config>/.devin-ecosystem/`,
+`<home>` = home dir. Per-OS paths live in the platform guides
+(`README.linux.md`, `README.windows.md`, `README.corporate-windows.md`);
+the platform table and env overrides are in `src/devin_internals/paths.py`
+and `docs/CONFIG-FILES.md`.
 
 Marks: **spec'd** = layout/format documented in the cited doc ·
 **observed-only** = seen on disk, not spec'd (the SCHEMA.md §4
@@ -28,7 +29,7 @@ Devin-owned/ecosystem-owned boundary — `docs/CONFIG-FILES.md` §4.
 
 | store | reads | writes | spec status |
 |---|---|---|---|
-| `<data>/cli/sessions.db` (incl. `refinery_schema_history` ledger) | `devin_internals` (`SessionsStore`, `detect_schema_version`, `devin-inspect schema`/`sessions`/`health`/`contract`) · `agent-sessions` (TS) + `devin-search` collectors (SESSION-SURFACES §6.1) · devin-assure `qa-pack` provider (SESSION-EVIDENCE §6.1) · devin-doctor (SURFACE-HEALTH §4.1) · `devin-history` (exporter — SPEC §4) | Devin CLI only — all tooling strictly read-only (`mode=ro` + `immutable=1` retry, SURFACES §3) | **spec'd** — SCHEMA.md §1, field-verified v17; v18 registered as observed-drift, gated known/supported (SCHEMA-VERSIONS §1) |
+| `<data>/cli/sessions.db` (incl. `refinery_schema_history` ledger) | `devin_internals` (`SessionsStore`, `detect_schema_version`, `devin-inspect schema`/`sessions`/`health`/`contract`) · `agent-sessions` (TS) + `devin-search` collectors (SESSION-SURFACES §6.1) · devin-assure `qa-pack` provider (SESSION-EVIDENCE §6.1) · devin-doctor (SURFACE-HEALTH §4.1) · `devin-history` (exporter — SPEC §4) | Devin CLI only — all tooling strictly read-only (`mode=ro` + `immutable=1` retry, SURFACES §3) | **spec'd** — SCHEMA.md §1, field-verified v17; v18 registered as known-but-unverified observed drift (`LATEST_KNOWN_SCHEMA` 18 / `VERIFIED_SCHEMA` 17 — SCHEMA-VERSIONS §1) |
 | `<config>/User/acp-messages/<session-uuid>.db` | `devin_internals` (`AcpMessagesStore`, `devin-inspect health`/`contract`) · devin-doctor (SURFACE-HEALTH §4.2) · spec'd for agent-sessions/devin-search, but SESSION-EVIDENCE §6.2: no agent-sessions source or qa-pack provider implements this surface yet — coverage is spec-level only | Devin Desktop only | **spec'd** — SCHEMA.md §2, shape-gated (`meta` + `messages`), no version marker (SCHEMA-VERSIONS §2) |
 | `<config>/User/globalStorage/state.vscdb` | `devin_internals` (`StateVscdbStore` `get`/`list_prefix`/`keys`, `vscdb-scan` shape audit, `devin-inspect health`/`contract` presence probe) | Devin Desktop (VS Code workbench state) | **spec'd shape; key space observed-only** — `ItemTable` spec'd SCHEMA.md §3 (`user_version = 1`, SCHEMA-VERSIONS §3); `windsurfSpace.*` key names are row content, never enumerated; out of session-surface scope (SURFACES §8) |
 | `<data>/credentials.toml` | `devin_internals.paths` resolves the location (contract); **values never read into output** — secret-bearing, no content reader spec'd (CREDENTIALS-TOML §3) | Devin CLI only — no tool ever writes it | **spec'd** — CREDENTIALS-TOML.md: flat TOML, verified key set (verified 2026-10-22) |
@@ -53,7 +54,7 @@ Written by devin-* tooling; shared across repos; anchored via
 | store | reads | writes | spec status |
 |---|---|---|---|
 | `machine-id` | every devin-* tool via `devin_internals.identity.machine_id()` | `devin_internals.identity` — once, atomic link-claim, mode `0600`, never regenerated | **spec'd (contract)** — CONFIG-FILES §2 + `devin_internals.identity` |
-| `devin-profile.json` | `devin_internals.identity.profile()` — canonical location first, legacy config-root copies next, fail-closed `"corporate"` | devin-* tooling (ecosystem-owned file; contract pinned by `devin_internals.identity`) | **spec'd (contract)** — CONFIG-FILES §2 |
+| `devin-profile.json` | `devin_internals.identity.profile()` — canonical location first, legacy config-root copies next, fail-closed `"corporate"` · `devin-powerups` `tools/hooks_dispatch.py` (config-dir copy only) | the **operator** — declarative marker `{"profile": "corporate" \| "personal"}` (declared profile, capability-profile.md "Declaring a profile"); no ecosystem tool writes it — `devin_internals.identity` pins the contract and only reads | **spec'd (contract)** — CONFIG-FILES §2 |
 | `hooks.json` | `devin-powerups` `tools/hooks_dispatch.py` (dispatcher registry) | devin-powerups registration tooling | **spec'd (contract)** — CONFIG-FILES §2 |
 | `scheduled.json` | the scheduler tick — `elapsed` jobs ticked by the `UserPromptSubmit` hook | `devin-state` `devin_install_scheduler.install` / `devin-powerups` `schedule.py` | **spec'd (contract)** — CONFIG-FILES §2 |
 | `plans.jsonl` | `devin-control` `devin_orchestrator.registry` | `devin-control` `devin_orchestrator.registry` | **spec'd (contract)** — CONFIG-FILES §2 |
@@ -76,7 +77,7 @@ for every consumer; the vendor agent is the only writer.
 
 | tool | reads | writes |
 |---|---|---|
-| `devin_internals` + `devin-inspect` (this repo) | `sessions.db`, `acp-messages/*.db`, `state.vscdb` (typed parsers + `health`/`contract` probes); resolves `credentials.toml`/`session_locks/` paths only | `machine-id` (once), `devin-profile.json` contract, `<cwd>/.devin/*-state.json` cursors — never a Devin-owned store |
+| `devin_internals` + `devin-inspect` (this repo) | `sessions.db`, `acp-messages/*.db`, `state.vscdb` (typed parsers + `health`/`contract` probes); resolves `credentials.toml`/`session_locks/` paths only; `devin-profile.json` contract (reader, not writer — the operator declares it) | `machine-id` (once), `<cwd>/.devin/*-state.json` cursors — never a Devin-owned store |
 | `agent-sessions` (TS) | `sessions.db`, copilot `session-state`, codex `state_<N>.sqlite` + rollouts, vscode-chat `chatSessions` — every refresh, no persistence; devin-chat spec'd, not yet implemented | nothing — metadata listing only |
 | `devin-search` collectors (Python) | same surface set as agent-sessions — incremental index | its own index (outside this spec's store list) |
 | devin-assure `qa-pack` | `sessions.db`, copilot `session-state`, codex store + rollouts, vscode-chat `chatSessions` (providers verified); devin-chat not yet implemented | nothing in the named stores — audit output is local-only, never persisted evidence |

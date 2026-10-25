@@ -26,7 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ecosystem-owned `.devin-ecosystem/`, third-party agent surfaces), who
   reads it, who writes it, and its spec status (spec'd vs observed-only
   per the SCHEMA.md §4 convention). Consolidation only — the per-store
-  spec docs stay normative.
+  spec docs stay normative. Post-review corrections: per-OS paths link
+  out to the platform READMEs instead of duplicating Linux defaults;
+  `devin-profile.json` writer attribution corrected to the operator
+  (declared profile — no tool writes it); v18 status aligned with
+  `schema.py` (known-but-unverified observed drift).
+
+### Fixed
+
+- `docs/SCHEMA-VERSIONS.md` supported range updated to `15..18` with a
+  v18 ledger row — the doc still claimed `15..17` after #56 registered
+  v18 as known in `schema.py` (`LATEST_KNOWN_SCHEMA = 18`,
+  `VERIFIED_SCHEMA = 17`); the row documents the devin-dream D06 drift
+  fixture provenance and the known-vs-verified distinction.
 - Three spec ledgers under `docs/`:
   - `docs/SCHEMA-VERSIONS.md` — schema-version drift matrix across Devin
     releases (per-store version marker, latest verified version, first-seen
