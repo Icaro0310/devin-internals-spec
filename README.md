@@ -323,7 +323,7 @@ small commits, a shared README and Windows/Linux platform guides.
 
 ## FAQ
 
-**What data does Devin store locally, and where?** Per this spec: a versioned `sessions.db` under `cli/` (sessions, tool-call state, transcripts), one `acp-messages/*.db` per GUI session, a `state.vscdb` KV store with `windsurfSpace.*` keys, `credentials.toml`, and a `refinery_schema_history` migration ledger. The verified details live in `docs/SPEC.md`; per-store version drift is tracked in `docs/SCHEMA-VERSIONS.md`, config/bookkeeping file formats in `docs/CONFIG-FILES.md`, and `credentials.toml` specifically in `docs/CREDENTIALS-TOML.md`.
+**What data does Devin store locally, and where?** Per this spec: a versioned `sessions.db` under `cli/` (sessions, tool-call state, transcripts), one `acp-messages/*.db` per GUI session, a `state.vscdb` KV store with `windsurfSpace.*` keys, `credentials.toml`, and a `refinery_schema_history` migration ledger. The verified details live in `docs/SPEC.md`; per-store version drift is tracked in `docs/SCHEMA-VERSIONS.md`, config/bookkeeping file formats in `docs/CONFIG-FILES.md`, `credentials.toml` specifically in `docs/CREDENTIALS-TOML.md`, and the consolidated store × tool read/write coverage matrix in `docs/STORE-MATRIX.md`.
 
 **What happens when Devin ships a new schema version?** Tools using this library fail loudly, not silently. `detect_schema_version()` returns a contract (`known`, `min_supported`) and raises on versions it does not recognize — field-verified against schema v17, with v18 registered as observed-drift, at time of writing.
 
