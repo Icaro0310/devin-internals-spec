@@ -12,7 +12,12 @@ from pathlib import Path
 from typing import Any
 
 MIN_SUPPORTED_SCHEMA = 15
-LATEST_KNOWN_SCHEMA = 17
+LATEST_KNOWN_SCHEMA = 18
+# Newest version whose *layout* was field-inspected (docs/SCHEMA.md).
+# v18 is registered as observed-drift — the ledger row exists in the
+# devin-dream D06 drift fixture — but no real v18 store was ever opened,
+# so ``verified`` stays pinned to 17 until fresh DDL evidence lands.
+VERIFIED_SCHEMA = 17
 
 SCHEMA_COMPAT_KEY = "schema_compat_version"
 
@@ -48,11 +53,16 @@ def detect_schema_version(db_path: str | Path) -> dict[str, Any]:
 
     Returns the version contract::
 
-        {"schema_version": 17, "known": True, "min_supported": 15, ...}
+        {"schema_version": 18, "known": True, "min_supported": 15, ...}
+
+    ``verified`` reports whether the version matches the newest
+    field-inspected layout (:data:`VERIFIED_SCHEMA`) — a version can be
+    known/supported without being verified (v18 is registered
+    observed-drift, not an inspected DDL).
 
     Raises:
         SchemaDetectionError: file missing, or missing the expected tables.
-        UnknownSchemaVersionError: version outside the known range 1..17.
+        UnknownSchemaVersionError: version outside the known range 1..18.
     """
     path = Path(db_path).expanduser()
     if not path.exists():
@@ -103,7 +113,7 @@ def detect_schema_version(db_path: str | Path) -> dict[str, Any]:
             "schema_compat_version": compat_version,
             "known": True,
             "supported": MIN_SUPPORTED_SCHEMA <= version <= LATEST_KNOWN_SCHEMA,
-            "verified": version == LATEST_KNOWN_SCHEMA,
+            "verified": version == VERIFIED_SCHEMA,
             "min_supported": MIN_SUPPORTED_SCHEMA,
             "max_supported": LATEST_KNOWN_SCHEMA,
         }

@@ -54,6 +54,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 8 new tests (corpus access + packaged↔committed drift guard): 162
   total.
 
+- Schema **v18 registered** (`LATEST_KNOWN_SCHEMA` 17 → 18, in both
+  `schema.py` and `fixtures.py`): the detector gates v18 `known` +
+  `supported`. Provenance is *observed-drift* — the version row exists
+  in the devin-dream D06 drift artifact — so a new `VERIFIED_SCHEMA = 17`
+  keeps the contract's `verified` field honest (v18's real migration
+  name/DDL were never inspected). `> 18` still raises
+  `UnknownSchemaVersionError`.
+- `fixtures/schema-versions/` corpus + packaged mirror — detector
+  boundary artifacts: `sessions-v18.db` (the real devin-dream D06
+  "Schema-drift canary" store, vendored byte-verbatim from devin-assure's
+  evals corpus, sha256-pinned in `manifest.json`) and `sessions-v19.db`
+  (synthetic, first unregistered version). `schema-versions` joins
+  `CORPORA` in `corpus_access`.
+- `fixtures/install-states/` regenerated: devin-cli `healthy`/`alt-root`
+  stores now carry 18-row ledgers (byte-identical artifacts are
+  unchanged). docs/SCHEMA.md §4 + SURFACE-HEALTH known-set updated.
+
 - `docs/SURFACE-HEALTH.md` — canonical spec for per-surface *installation
   health*, the substrate the generalized agent environment doctor
   (devin-doctor) reports on: the ordered check ladder

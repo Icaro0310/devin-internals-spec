@@ -187,7 +187,7 @@ class SessionsStore:
 
     Raises:
         SchemaDetectionError: file missing or not a sessions.db.
-        UnknownSchemaVersionError: schema version newer than v17.
+        UnknownSchemaVersionError: schema version newer than v18.
         SchemaError: schema version known but below ``min_supported``.
     """
 

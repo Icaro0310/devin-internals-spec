@@ -47,7 +47,9 @@ of silently misreading your data.
 
 Everything Devin stores on your disk is kept in undocumented SQLite databases
 whose schema **changes without notice**: `sessions.db` has already gone through
-**17 migrations** (v1–v15 on 2026-05-06, v16 on 2026-07-05, v17 on 2026-09-14).
+**17 verified migrations** (v1–v15 on 2026-05-06, v16 on 2026-07-05, v17 on
+2026-09-14), plus a v18 ledger version registered from a drift artifact
+(docs/SCHEMA.md §4).
 Any tool that reads these stores has to reverse-engineer the format — and when
 Cognition ships the next migration, those tools break *silently*: wrong counts,
 missed rows, or corrupted interpretation, with no error raised.
@@ -286,7 +288,8 @@ hold auth tokens and PII. `--fail-on-flags` exits 1 for CI.
 - **Private, volatile internals.** These stores are implementation details of
   Devin; the schema can change in any release. Only what is marked "verified"
   in `docs/SPEC.md` should be relied on.
-- **Verified against schema v17** only (the latest at time of writing). The
+- **Field-verified against schema v17** (the newest inspected layout; v18 is
+  registered as observed-drift — gated as known, layout unverified). The
   detector *refuses* versions it doesn't know — that's a feature, but it means
   new Devin releases will break detection until the spec is updated.
 - **Read-only.** This project never writes to Devin's databases.
@@ -315,14 +318,14 @@ small commits, a shared README and Windows/Linux platform guides.
 ## When NOT to use this
 
 - You want to export or dump sessions — this documents and guards the format; `devin-history` does the exporting.
-- Your Devin release ships a schema newer than v17 — the detector refuses by design until the spec catches up.
+- Your Devin release ships a schema newer than v18 — the detector refuses by design until the spec catches up.
 - You need writes — every parser and subcommand is strictly read-only.
 
 ## FAQ
 
 **What data does Devin store locally, and where?** Per this spec: a versioned `sessions.db` under `cli/` (sessions, tool-call state, transcripts), one `acp-messages/*.db` per GUI session, a `state.vscdb` KV store with `windsurfSpace.*` keys, `credentials.toml`, and a `refinery_schema_history` migration ledger. The verified details live in `docs/SPEC.md`; per-store version drift is tracked in `docs/SCHEMA-VERSIONS.md`, config/bookkeeping file formats in `docs/CONFIG-FILES.md`, and `credentials.toml` specifically in `docs/CREDENTIALS-TOML.md`.
 
-**What happens when Devin ships a new schema version?** Tools using this library fail loudly, not silently. `detect_schema_version()` returns a contract (`known`, `min_supported`) and raises on versions it does not recognize — verified against schema v17 at time of writing.
+**What happens when Devin ships a new schema version?** Tools using this library fail loudly, not silently. `detect_schema_version()` returns a contract (`known`, `min_supported`) and raises on versions it does not recognize — field-verified against schema v17, with v18 registered as observed-drift, at time of writing.
 
 **How is this different from other sessions.db parsers?** It also documents the Desktop GUI stores (`acp-messages/*.db`, `state.vscdb`, session locks, the migration ledger) that other tools don't cover, and adds the explicit schema-version gate. The library is the supported interface; `devin-inspect` is a thin CLI wrapper.
 

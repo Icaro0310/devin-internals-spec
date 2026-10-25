@@ -1,8 +1,9 @@
-"""Version-detector tests: v17 detected, unknown versions fail loudly."""
+"""Version-detector tests: v18 detected, unknown versions fail loudly."""
 
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -13,31 +14,70 @@ from devin_internals import (
 )
 from devin_internals.fixtures import create_acp_messages_db, create_sessions_db
 
+SCHEMA_VERSIONS_CORPUS = (
+    Path(__file__).resolve().parents[1] / "fixtures" / "schema-versions"
+)
 
-def test_detects_v17(tmp_path):
+
+def test_detects_v18(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db")
 
     info = detect_schema_version(db)
 
+    assert info["schema_version"] == 18
+    assert info["schema_compat_version"] == 18
+    assert info["known"] is True
+    assert info["supported"] is True
+    # v18 is registered observed-drift: gated as known, but no real v18
+    # DDL was inspected — verified stays pinned to the v17 layout.
+    assert info["verified"] is False
+    assert info["min_supported"] == 15
+    assert info["max_supported"] == 18
+
+
+def test_detects_committed_v18_fixture():
+    """The real devin-dream D06 drift store gates as known+supported."""
+    db = SCHEMA_VERSIONS_CORPUS / "sessions-v18.db"
+
+    info = detect_schema_version(db)
+
+    assert info["schema_version"] == 18
+    assert info["schema_compat_version"] == 18
+    assert info["known"] is True
+    assert info["supported"] is True
+    assert info["verified"] is False
+
+
+def test_committed_v19_fixture_still_fails_loudly():
+    """First version past the registered range keeps the canary honest."""
+    db = SCHEMA_VERSIONS_CORPUS / "sessions-v19.db"
+
+    with pytest.raises(UnknownSchemaVersionError, match="version 19"):
+        detect_schema_version(db)
+
+
+def test_last_verified_layout_reports_verified(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=17)
+
+    info = detect_schema_version(db)
+
     assert info["schema_version"] == 17
-    assert info["schema_compat_version"] == 17
     assert info["known"] is True
     assert info["supported"] is True
     assert info["verified"] is True
-    assert info["min_supported"] == 15
-    assert info["max_supported"] == 17
 
 
 def test_accepts_str_path_and_tilde(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db")
     info = detect_schema_version(str(db))
-    assert info["schema_version"] == 17
+    assert info["schema_version"] == 18
 
 
-def test_unknown_version_fails_loudly(tmp_path):
-    db = create_sessions_db(tmp_path / "sessions.db", schema_version=99)
+@pytest.mark.parametrize("version", [19, 99])
+def test_unknown_version_fails_loudly(tmp_path, version):
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=version)
 
-    with pytest.raises(UnknownSchemaVersionError, match="version 99"):
+    with pytest.raises(UnknownSchemaVersionError, match=f"version {version}"):
         detect_schema_version(db)
 
 

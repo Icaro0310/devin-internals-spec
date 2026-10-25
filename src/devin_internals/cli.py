@@ -323,7 +323,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="deterministic seed (default: %(default)s)")
     p.add_argument("--schema-version", type=int,
                    default=fixtures.LATEST_KNOWN_SCHEMA,
-                   help="sessions.db schema version; >17 exercises the "
+                   help="sessions.db schema version; >18 exercises the "
                         "unknown-version path (default: %(default)s)")
     p.add_argument("--n-sessions", type=int, default=3,
                    help="sessions to generate (default: %(default)s)")

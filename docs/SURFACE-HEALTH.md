@@ -158,8 +158,9 @@ the corpus (§7) mirrors them as fixture-relative paths.
   mirrors it (SCHEMA.md §1). **`PRAGMA user_version` is not the schema
   version** (it is 0 on real stores); a missing ledger table is
   `schema-unknown`, never `schema-old`.
-- known set: **v15–v17** (`MIN_SUPPORTED_SCHEMA`..`LATEST_KNOWN_SCHEMA`,
-  verified). `< 15` → `schema-old`; `> 17` → `schema-unknown`.
+- known set: **v15–v18** (`MIN_SUPPORTED_SCHEMA`..`LATEST_KNOWN_SCHEMA`;
+  v18 observed-drift, unverified — SCHEMA.md §4). `< 15` → `schema-old`;
+  `> 18` → `schema-unknown`.
 - sane: `COUNT(*)` on `sessions` > 0.
 
 ### 4.2 `devin-chat` — `<config>/Devin/User/acp-messages/<uuid>.db`
