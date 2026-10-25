@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `pr-approve` caller repinned from v1.6 to v1.9 in `auto-approve.yml`
+  (the v1.9 gate fixes the self-cancel so a successful approval no
+  longer renders as a failed check, and adds fresh-head recheck plus
+  paginated dedup); `tests/test_auto_approve_gate.py` pins the caller
+  contract.
 - `actions/download-artifact` bumped to v8.0.2 in `pypi-publish.yml`;
   `tests/test_pypi_publish_handoff.py` now pins the `dist` handoff
   contract (`needs: verify`, artifact name/path, v4+-compatible hash pin,
