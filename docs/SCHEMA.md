@@ -169,9 +169,11 @@ UTF-8 with `errors="replace"`. Individual `windsurfSpace.*` key names are
   pins that boundary).
 - **v15/v16 DDL**: only v17's DDL was inspected. The real migration list
   (names/deltas) lives in `refinery_schema_history` *rows*, which are row
-  content and were not read. Fixtures therefore model **v17 only**; the
-  `schema_version` knob fakes the ledger marker, not the layout. Documented
-  gap, not a guess — fill in when old-DB evidence is available.
+  content and were not read. Fixtures therefore model **v17's layout
+  only** — the vendored v18/v19 stores (above) pin the ledger-marker
+  boundary, not DDL evidence; the `schema_version` knob fakes the marker,
+  not the layout. Documented gap, not a guess — fill in when old-DB
+  evidence is available.
 - **JSON/text payload columns** (`chat_message`, `metadata`, `cogs_json`,
   `workspace_dirs`, `tool_call_*_json`, `rendered_html`, acp `payload`,
   `ItemTable.value` semantics): column exists (verified) but the inner format
