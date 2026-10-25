@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `docs/STORE-MATRIX.md` — consolidated store × tool × read/write
+  coverage matrix: every store the spec set names (Devin-owned,
+  ecosystem-owned `.devin-ecosystem/`, third-party agent surfaces), who
+  reads it, who writes it, and its spec status (spec'd vs observed-only
+  per the SCHEMA.md §4 convention). Consolidation only — the per-store
+  spec docs stay normative.
 - Three spec ledgers under `docs/`:
   - `docs/SCHEMA-VERSIONS.md` — schema-version drift matrix across Devin
     releases (per-store version marker, latest verified version, first-seen
