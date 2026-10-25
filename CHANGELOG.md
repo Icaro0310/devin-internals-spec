@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `docs/SCHEMA.md` §4: the v15/v16 gap bullet now scopes "fixtures model
+  v17" to v17's *layout* — the vendored v18/v19 stores pin the
+  ledger-marker boundary, so "v17 only" no longer reads as if no v18
+  fixture exists.
 - `pr-approve` caller repinned from v1.6 to v1.9 in `auto-approve.yml`
   (the v1.9 gate fixes the self-cancel so a successful approval no
   longer renders as a failed check, and adds fresh-head recheck plus
