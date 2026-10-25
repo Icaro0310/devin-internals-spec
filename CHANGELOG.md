@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   concurrency) and gains the `pull_request_review_comment` trigger so
   fix-commit replies re-evaluate the gate on the same head;
   `tests/test_auto_approve_gate.py` pins the caller contract.
+- `pypa/gh-action-pypi-publish` bumped from `1.14.2` to `1.14.3` in
+  `pypi-publish.yml` (Dependabot).
 
 ### Added
 
