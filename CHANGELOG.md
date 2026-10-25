@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `docs/SCHEMA-VERSIONS.md` §4 clarified: canary registration under
+  `LATEST_KNOWN_SCHEMA` is a documented step of the drift protocol that
+  may precede the field-by-field diff; the step list now states that
+  verification (step 2) can follow registration (step 3).
 - `pr-approve` caller repinned from v1.6 to v1.9 in `auto-approve.yml`
   (the v1.9 gate fixes the self-cancel so a successful approval no
   longer renders as a failed check, and adds fresh-head recheck plus

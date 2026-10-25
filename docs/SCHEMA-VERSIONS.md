@@ -68,6 +68,8 @@ and are not enumerated in the spec.
    version — that failure **is** the signal; do not silence it.
 2. Inspect the new DDL (`sqlite_master` + `PRAGMA table_info`), diff against
    `docs/SCHEMA.md`, and mark each changed field with its version tag.
+   This verification may complete after step 3 — canary registration does
+   not wait for it; only `VERIFIED_SCHEMA` does.
 3. Bump `LATEST_KNOWN_SCHEMA` in `src/devin_internals/schema.py` and add a
    `schema_version=N` fixture row in `fixtures.py`, regenerating corpus
    fixtures that stamp a version — this is *canary registration* (see
