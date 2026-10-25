@@ -21,10 +21,10 @@ def test_schema_prints_contract(tmp_path, capsys):
 
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["schema_version"] == 17
+    assert out["schema_version"] == 18
     assert out["known"] is True
     assert out["min_supported"] == 15
-    assert out["max_supported"] == 17
+    assert out["max_supported"] == 18
 
 
 def test_schema_unknown_version_fails_loud(tmp_path, capsys):
@@ -79,7 +79,7 @@ def test_health_on_fixture_tree(tmp_path, capsys):
     assert report["ok"] is True
     stores = report["stores"]
     assert stores["sessions_db"]["exists"] is True
-    assert stores["sessions_db"]["schema_version"] == 17
+    assert stores["sessions_db"]["schema_version"] == 18
     assert stores["sessions_db"]["counts"]["sessions"] > 0
     assert stores["acp_messages"]["exists"] is True
     assert stores["acp_messages"]["count"] == 2

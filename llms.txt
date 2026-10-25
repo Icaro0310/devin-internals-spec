@@ -2,7 +2,7 @@
 
 > Documented map of Devin's local session stores — CLI `sessions.db`, Desktop `acp-messages/*.db` and `state.vscdb` — plus a schema-version detector and deterministic synthetic fixtures, so tooling fails loudly instead of silently misreading data.
 
-Devin keeps everything on disk in undocumented SQLite databases whose schema changes without notice (sessions.db is at v17 and counting). This project documents the format — including the `refinery_schema_history` migration ledger, per-session `acp-messages` stores and `windsurfSpace.*` keys in `state.vscdb` — and ships a Python library (`devin_internals`) with typed, read-only parsers and `detect_schema_version()`, which returns a version contract and refuses unknown versions. It is the ground-truth layer that devin-qa-pack, devin-evals, devin-doctor and devin-memory build on.
+Devin keeps everything on disk in undocumented SQLite databases whose schema changes without notice (sessions.db is at v18 and counting). This project documents the format — including the `refinery_schema_history` migration ledger, per-session `acp-messages` stores and `windsurfSpace.*` keys in `state.vscdb` — and ships a Python library (`devin_internals`) with typed, read-only parsers and `detect_schema_version()`, which returns a version contract and refuses unknown versions. It is the ground-truth layer that devin-qa-pack, devin-evals, devin-doctor and devin-memory build on.
 
 ## Docs
 - [README](https://github.com/Icaro0310/devin-internals-spec/blob/main/README.md): full documentation
@@ -26,7 +26,7 @@ Devin keeps everything on disk in undocumented SQLite databases whose schema cha
 
 ## When to use / when not
 - Use when: building tools that read Devin's local stores; you need a schema-version gate that refuses loudly on unknown versions; you need deterministic synthetic fixtures to test parsers without real data.
-- Not when: you want to export sessions (that's devin-history's job — this documents and guards the format, never dumps conversations); the Devin schema is newer than v17 (the detector refuses by design until the spec is updated); you need writes (strictly read-only).
+- Not when: you want to export sessions (that's devin-history's job — this documents and guards the format, never dumps conversations); the Devin schema is newer than v18 (the detector refuses by design until the spec is updated); you need writes (strictly read-only).
 
 ## Related
 - [devin-ecosystem](https://icaro0310.github.io/): the tool ecosystem this belongs to

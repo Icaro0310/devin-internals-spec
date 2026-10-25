@@ -15,7 +15,7 @@ Updated: 2026-10-04 · Milestone: **M3 (in progress)** · Version: 0.3.0
   - `sessions.py` — `SessionsStore` → `Session`, `MessageNode`,
     `ToolCallState`, `PromptHistoryEntry`, `RenderedCommit`, `SubagentHead`,
     plus `app_state()`/`counts()`. Gates on `detect_schema_version()`;
-    refuses unknown (>17) *and* known-but-unsupported (<15) versions.
+    refuses unknown (>18) *and* known-but-unsupported (<15) versions.
   - `acp_messages.py` — `AcpMessagesStore` → `meta()` dict + `messages()`.
   - `state_vscdb.py` — `StateVscdbStore` → `get()`, `list_prefix()`,
     `keys()`; UTF-8 decodes BLOB values.

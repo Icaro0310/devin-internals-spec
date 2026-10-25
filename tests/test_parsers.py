@@ -82,7 +82,7 @@ def test_sessions_store_remaining_tables(tmp_path):
             isinstance(s, SubagentHead) for s in store.subagent_heads()
         )
         assert store.subagent_heads()
-        assert store.app_state()["schema_compat_version"] == "17"
+        assert store.app_state()["schema_compat_version"] == "18"
         counts = store.counts()
 
     assert set(counts) == {

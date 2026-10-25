@@ -19,7 +19,7 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-LATEST_KNOWN_SCHEMA = 17
+LATEST_KNOWN_SCHEMA = 18
 MIN_SUPPORTED_SCHEMA = 15
 DEFAULT_SEED = 0xD317
 
@@ -140,7 +140,7 @@ def create_sessions_db(
     """Create a synthetic ``sessions.db`` at ``path``.
 
     The layout is always the real v17 DDL; ``schema_version`` only controls the
-    rows written to ``refinery_schema_history``/``app_state`` (use > 17 to
+    rows written to ``refinery_schema_history``/``app_state`` (use > 18 to
     exercise the unknown-version path of the detector).
     """
     if schema_version < 1:

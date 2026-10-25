@@ -1,7 +1,10 @@
 # SCHEMA.md — Devin local stores, field by field
 
 Reference for the three local stores. **Verified against schema v17**
-(`sessions.db` migration ledger) on 2026-09-29, Windows. Unless marked
+(`sessions.db` migration ledger) on 2026-09-29, Windows. **v18 is
+registered** (2026-10-25) as *observed-drift* — the version row exists
+in the devin-dream D06 drift fixture, but no live v18 DDL was ever
+inspected, so v17 remains the newest *verified* layout (§4). Unless marked
 otherwise, every field below was observed in the live DDL (`sqlite_master` +
 `PRAGMA table_info`) — *structure only; row content is never published*.
 
@@ -10,8 +13,10 @@ exists but inner format is opaque/unverified — treat as opaque.
 
 ## 1. `cli/sessions.db` (schema v17)
 
-Migration ledger (`refinery_schema_history`) holds 17 rows; the detector uses
-`MAX(version)` as the schema version. `app_state.schema_compat_version`
+Migration ledger (`refinery_schema_history`) holds 17 rows in verified v17
+stores; an 18th row exists in the devin-dream D06 drift artifact (real
+migration name/DDL uninspected — §4). The detector uses `MAX(version)` as
+the schema version and accepts 1–18. `app_state.schema_compat_version`
 mirrors it. `PRAGMA user_version` is 0 — it is *not* the schema version.
 
 ### ER diagram
@@ -151,6 +156,17 @@ UTF-8 with `errors="replace"`. Individual `windsurfSpace.*` key names are
 
 ## 4. Known gaps (explicit)
 
+- **v18 DDL**: registered 2026-10-25 as *observed-drift*, provenance the
+  devin-dream D06 "Schema-drift canary" store vendored byte-verbatim at
+  `fixtures/schema-versions/sessions-v18.db` (also shipped packaged as
+  `devin_internals/corpus/schema-versions/`). There the 18th ledger row is
+  synthetic (`synthetic_migration_18`, `applied_on` 9999-12-31): the real
+  v18 migration name and DDL were never inspected, so the detector gates
+  v18 `known`/`supported` — "we know this version exists" — while
+  `verified` stays `False` (`VERIFIED_SCHEMA` remains 17). Fill in when a
+  live v18 store is available; `> 18` still raises
+  `UnknownSchemaVersionError` (`fixtures/schema-versions/sessions-v19.db`
+  pins that boundary).
 - **v15/v16 DDL**: only v17's DDL was inspected. The real migration list
   (names/deltas) lives in `refinery_schema_history` *rows*, which are row
   content and were not read. Fixtures therefore model **v17 only**; the
