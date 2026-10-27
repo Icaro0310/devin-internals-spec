@@ -13,6 +13,10 @@ repos stop vendoring byte-copies that drift:
   the real devin-dream D06 v18 drift ``sessions.db`` (vendored
   byte-verbatim) plus a synthetic v19 store that must still raise
   ``UnknownSchemaVersionError``.
+- ``message-schemas`` — versioned GUI/ACP message-payload shape fixtures
+  (SCHEMA.md §2): one JSON fixture per (``messages.kind``,
+  ``meta.schema_version``) — shape only, never contents — consumed by
+  ``devin_internals.message_schemas``.
 
 ``corpus_root()`` exposes the tree read-only via ``importlib.resources``;
 ``materialize_corpus()`` copies a corpus to a real directory because
@@ -33,7 +37,7 @@ if sys.version_info >= (3, 11):
 else:  # 3.10: Traversable lives in importlib.abc
     from importlib.abc import Traversable
 
-CORPORA = ("session-corpus", "install-states", "schema-versions")
+CORPORA = ("session-corpus", "install-states", "schema-versions", "message-schemas")
 
 __all__ = ["CORPORA", "corpus_root", "materialize_corpus"]
 

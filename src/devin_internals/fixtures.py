@@ -251,6 +251,52 @@ def _insert_session(con: sqlite3.Connection, rng: random.Random, seed: int, i: i
     )
 
 
+# Real kind vocabulary observed on live acp-messages DBs (v6):
+# user_message / agent_message / agent_thought / tool_call / plan / subagent.
+# The generator emits the four core kinds.
+_ACP_KINDS = ("user_message", "agent_message", "agent_thought", "tool_call")
+
+
+def _acp_payload(kind: str, pos: int) -> dict:
+    """Minimal meta.schema_version=6 payload for ``kind``.
+
+    Shape matches fixtures/message-schemas/<kind>.schema-v6.json verified
+    requirements; values are synthetic placeholders only.
+    """
+    if kind == "tool_call":
+        return {
+            "kind": "tool_call",
+            "id": f"synthetic-msg-{pos}",
+            "sourceEventIsStart": True,
+            "warnings": [],
+            "content": {
+                "toolCallId": f"synthetic-tc-{pos}",
+                "_meta": {
+                    "cognition.ai/inferenceToolName": "synthetic_tool",
+                    "synthetic": True,
+                },
+            },
+        }
+    session_update = {
+        "user_message": "user_message_chunk",
+        "agent_message": "agent_message_chunk",
+        "agent_thought": "agent_thought_chunk",
+    }[kind]
+    block: dict[str, object] = {
+        "sessionUpdate": session_update,
+        "content": {"type": "text", "text": "synthetic"},
+        "_meta": {"synthetic": True},
+    }
+    if kind == "user_message":
+        block["_meta"] = {  # type: ignore[index]
+            "synthetic": True,
+            "cognition.ai/clientMessageId": f"synthetic-client-{pos}",
+            "cognition.ai/messageSubIndex": 0,
+            "cognition.ai/timestamp": "2026-01-01T00:00:00Z",
+        }
+    return {"kind": kind, "id": f"synthetic-msg-{pos}", "content": [block]}
+
+
 def create_acp_messages_db(path: str | Path, *, seed: int = DEFAULT_SEED) -> Path:
     """Create a synthetic per-session ``acp-messages/*.db`` at ``path``."""
     path = Path(path)
@@ -278,17 +324,14 @@ def create_acp_messages_db(path: str | Path, *, seed: int = DEFAULT_SEED) -> Pat
                 ("fixture.created_at", str(_BASE_TS_MS)),
             ],
         )
-        # Real kind vocabulary observed on live acp-messages DBs:
-        # user_message / agent_message / agent_thought / tool_call.
-        kinds = ["user_message", "agent_message", "agent_thought", "tool_call"]
+        # Payloads model the real meta.schema_version=6 shapes verified in
+        # fixtures/message-schemas/ — synthetic values, real field names —
+        # so generated stores pass `message_schemas.verify_db` clean.
         for pos in range(n_messages):
+            kind = _ACP_KINDS[pos % len(_ACP_KINDS)]
             con.execute(
                 "INSERT INTO messages(position, kind, payload) VALUES (?, ?, ?)",
-                (
-                    pos,
-                    kinds[pos % len(kinds)],
-                    json.dumps({"synthetic": True, "position": pos}),
-                ),
+                (pos, kind, json.dumps(_acp_payload(kind, pos))),
             )
     con.close()
     return path

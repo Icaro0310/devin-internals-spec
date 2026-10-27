@@ -1,0 +1,51 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "meta",
+  "kind": "_meta",
+  "meta_schema_version": 1,
+  "status": "verified",
+  "provenance": "aggregate shape of 2 live v1 stores inspected 2026-10-27 (Linux) — key names/types only, no values captured",
+  "fields": {
+    "schema_version": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["1"], "closed": true,
+      "note": "store version marker, integer encoded as TEXT — selects this fixture"
+    },
+    "message_count": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "integer encoded as TEXT; equals the messages row count (see store_checks)"
+    },
+    "info": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "json_text": true,
+      "note": "session metadata as a JSON-encoded string"
+    },
+    "info.title": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "info.configOptions": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "info.availableCommands": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "truncated": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 (34/36 v6 stores) — absent from all sampled v1 stores"
+    },
+    "janitor_managed": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed on a minority of v6 stores (5/36, 2026-10-27) — absent from all sampled v1 stores"
+    }
+  },
+  "store_checks": [
+    "message_count_equals_row_count",
+    "positions_contiguous_zero_based"
+  ],
+  "notes": [
+    "The meta key space is open per spec — undeclared keys are tolerated and reported as extra_meta_keys, never contradictions.",
+    "Fields listed in the v6 fixture and absent here were first observed under that store version."
+  ]
+}

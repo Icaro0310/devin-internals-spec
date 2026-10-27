@@ -237,8 +237,9 @@ c.commit()
 
 ## Packaged synthetic corpora (`devin_internals.corpus_access`)
 
-The session-corpus and install-states fixtures ship inside the wheel —
-downstream repos consume them by contract instead of vendoring copies.
+The session-corpus, install-states, schema-versions and message-schemas
+fixtures ship inside the wheel — downstream repos consume them by
+contract instead of vendoring copies.
 
 ```python
 from devin_internals.corpus_access import corpus_root, materialize_corpus
@@ -256,6 +257,15 @@ byte-identical. The generator modules (`python -m
 devin_internals.session_corpus` / `install_states`) can also rebuild
 both corpora from scratch; `pip install "devin-internals-spec[corpus]"`
 is the marker extra documenting the contract.
+
+`message-schemas` is data rather than generated: versioned GUI/ACP
+message-payload *shape* fixtures (docs/SCHEMA.md §2 — one fixture per
+`messages.kind` × `meta.schema_version`, shape only, never contents),
+consumed by `devin_internals.message_schemas`:
+
+```bash
+python -m devin_internals.message_schemas verify ~/.config/Devin/User/acp-messages
+```
 
 ## Works with Devin alone (Devin-only mode)
 

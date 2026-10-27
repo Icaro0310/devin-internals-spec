@@ -1,0 +1,28 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "tool_call_update",
+  "meta_schema_version": 6,
+  "status": "unverified",
+  "provenance": "documented, never observed — docs/SESSION-EVIDENCE.md §6.2 lists 'tool_call_update' in the ACP session-update vocabulary this store may carry; absent from all 36 sampled live stores (2 v1 + 34 v6, 2026-10-27)",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "unverified",
+      "values": ["tool_call_update"],
+      "note": "expected to mirror messages.kind like every observed kind"
+    },
+    "id": {
+      "types": ["str"], "presence": "always", "status": "unverified",
+      "note": "SESSION-EVIDENCE §6.2 — tool_call_update rows pair to tool_call 'by the id inside the decoded payload'"
+    },
+    "content": {
+      "types": ["dict"], "presence": "sometimes", "status": "unverified",
+      "note": "inner shape undocumented — the spec names the kind only"
+    }
+  },
+  "notes": [
+    "Entirely unverified: every field is a documented expectation, nothing was confirmed in real data. A store carrying this kind reports promotions, not a pass."
+  ]
+}

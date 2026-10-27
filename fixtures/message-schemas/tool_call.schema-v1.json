@@ -1,0 +1,205 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "tool_call",
+  "meta_schema_version": 1,
+  "status": "verified",
+  "provenance": "aggregate shape of live v1 stores (2 DBs, 1158 sampled rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["tool_call"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads (0/1158)"
+    },
+    "sourceEventIsStart": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads"
+    },
+    "sourceEventTimestampMs": {
+      "types": ["int"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads"
+    },
+    "sourceEventType": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads"
+    },
+    "warnings": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "warnings[].level": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["debug"],
+      "note": "only 'debug' observed in sampled items — vocabulary kept open"
+    },
+    "warnings[].message": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content": {
+      "types": ["dict"], "presence": "always", "status": "verified"
+    },
+    "content.toolCallId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content.title": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content.status": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["completed", "failed"],
+      "documented_unverified": ["pending", "in_progress"],
+      "closed": true,
+      "note": "ACP ToolCallStatus is pending|in_progress|completed|failed — only terminal states observed; rows persist lifecycle snapshots"
+    },
+    "content.kind": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "values": ["edit", "execute", "fetch", "read", "search"],
+      "documented_unverified": ["delete", "move", "think", "switch_mode", "other"],
+      "closed": true,
+      "note": "ACP ToolKind — upstream enum completed by documented_unverified"
+    },
+    "content.rawInput": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "per-tool argument space — children not enumerated (command/file_path/shell_id/…)"
+    },
+    "content.content": {
+      "types": ["list"], "presence": "sometimes", "status": "verified"
+    },
+    "content.content[].type": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["content", "diff"],
+      "documented_unverified": ["terminal"],
+      "closed": true,
+      "note": "ACP ToolCallContent union — 'terminal' variant documented upstream, never observed"
+    },
+    "content.content[].content": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "inner ACP ContentBlock (type/text/name/uri/resource) — variants open"
+    },
+    "content.content[].path": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[].oldText": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[].newText": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[]._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "unverified",
+      "open": true,
+      "note": "first observed under v6 (cognition.ai/linesAdded|linesRemoved)"
+    },
+    "content.locations": {
+      "types": ["list"], "presence": "sometimes", "status": "verified"
+    },
+    "content.locations[].path": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content.locations[].line": {
+      "types": ["int"], "presence": "sometimes", "status": "verified"
+    },
+    "content.locations[]._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "observed child: cognition.ai/endLine"
+    },
+    "content._meta": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/* namespace — open; children marked unverified were first observed under v6"
+    },
+    "content._meta[\"cognition.ai/inferenceToolName\"]": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/timestamp\"]": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "ISO-8601 timestamp string; always under v1, sometimes under v6"
+    },
+    "content._meta[\"cognition.ai/cwd\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/commandNames\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6 (0% of sampled v1 payloads)"
+    },
+    "content._meta[\"cognition.ai/terminalPreview\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/background\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/backgroundCommand\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/backgroundShellId\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/backgroundRequested\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/canceled\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified",
+      "note": "promoted 2026-10-27 — observed in a v1 store (previously v6-only evidence)"
+    },
+    "content._meta[\"cognition.ai/rejected\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/suppressApproval\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/eventType\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/toolName\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/timeoutMs\"]": {
+      "types": ["int"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/terminal_exit\"]": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "observed children: exit_code (int), signal (null), terminal_id (str)"
+    },
+    "content._meta[\"cognition.ai/questions\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "unverified",
+      "open": true,
+      "note": "first observed under v6 — ask-user question items"
+    },
+    "content._meta[\"cognition.ai/originalQuestions\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "unverified",
+      "open": true,
+      "note": "first observed under v6"
+    },
+    "content._meta[\"cognition.ai/answers\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "unverified",
+      "open": true,
+      "note": "first observed under v6"
+    }
+  },
+  "notes": [
+    "The v6-only cognition.ai/* children stay as unverified entries so a v1 store carrying one reports a promotion (schema-evolution evidence), not silence.",
+    "warnings[] was populated on most sampled v1 rows (unlike v6 where the list is usually empty)."
+  ]
+}

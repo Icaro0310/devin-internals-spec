@@ -1,0 +1,62 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "agent_message",
+  "meta_schema_version": 1,
+  "status": "verified",
+  "provenance": "aggregate shape of live v1 stores (2 DBs, 209 sampled rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["agent_message"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads (0/209)"
+    },
+    "turnId": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "turn linkage — present on every sampled v1 payload (209/209)"
+    },
+    "content": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "content[].sessionUpdate": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["agent_message_chunk"], "closed": true,
+      "note": "ACP session-update discriminator"
+    },
+    "content[].content": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "note": "ACP ContentBlock"
+    },
+    "content[].content.type": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["text"],
+      "documented_unverified": ["image", "audio", "resource_link", "resource"],
+      "note": "only 'text' blocks observed on agent_message chunks (all sampled versions)"
+    },
+    "content[].content.text": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content[]._meta": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/* namespace — open; declared children asserted, others tolerated"
+    },
+    "content[]._meta[\"cognition.ai/timestamp\"]": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "ISO-8601 timestamp string; always under v1, sometimes under v6"
+    },
+    "content[]._meta[\"cognition.ai/streamingMessageId\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 items"
+    }
+  },
+  "notes": [
+    "turnId presence is per-store (0% or 100% of a store's rows, never mixed) — always under v1, sometimes under v6."
+  ]
+}

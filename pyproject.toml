@@ -24,7 +24,8 @@ devin-inspect = "devin_internals.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-# Both committed corpora (session-corpus, install-states) ship as package
+# All committed corpora (session-corpus, install-states, schema-versions,
+# message-schemas) ship as package
 # data. Hidden entries need explicit `.*` segments — recursive `**`/`*
 # globs skip dotfiles and never descend into dotdirs (.codex, .config,
 # .local, .copilot, .vscode-server, .gitkeep leaves).
