@@ -7,8 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `fixtures/message-schemas/` — versioned GUI/ACP message-payload shape
+  corpus (docs/SCHEMA.md §2, new fourth packaged corpus
+  `devin_internals/corpus/message-schemas/`): one fixture per
+  (`messages.kind`, `meta.schema_version`) — `user_message`,
+  `agent_message`, `agent_thought`, `tool_call` under v1+v6, plus
+  v6-only `plan`/`subagent` and documented-but-unobserved
+  `tool_call_update` under both — plus `_meta` fixtures per store
+  version. Fields carry `verified`/`unverified` marks: verified claims
+  (field present on every observed parent, types, closed discriminator
+  vocabularies, `message_count`/position store invariants) are asserted
+  loudly; unverified claims are never asserted — observing one is
+  reported as a promotion. Built from a shape census of 36 live stores
+  (2 v1, 34 v6) — field names/types only, never values.
+- `src/devin_internals/message_schemas.py` — stdlib-only loader +
+  verifier for the corpus (`load_corpus`, `verify_payload`,
+  `verify_db`, `extract_shape`) with `python -m
+  devin_internals.message_schemas verify|extract` CLI; read-only SQLite
+  access, corrupt stores report contradictions instead of crashing.
+- `fixtures/message-schemas/README.md` — the `message-schema` format
+  v1 spec (paths, `always`/`sometimes` presence, `open`/`closed`/
+  `json_text` keys, store_checks, contradiction/promotion/note tiers).
+- `tests/test_message_schemas.py` — corpus loads + filename↔content
+  agreement, format rejection cases, verified/unverified assertion
+  semantics, fail-loud `verify_db` cases (missing field, unknown
+  kind/version, message-count lie, position gap, corrupt file), the
+  install-states artifacts as real fail-loud evidence, privacy guards
+  (no content values in fixtures), and a skip-if-absent live-store
+  check.
+
 ### Changed
 
+- `src/devin_internals/fixtures.py`: `create_acp_messages_db` payloads
+  now model the real meta.schema_version=6 shapes (synthetic values,
+  real field names) so generated stores pass `verify_db`; the
+  install-states `devin-chat/healthy` artifact was regenerated to match.
+- `docs/SCHEMA.md` §2 documents the corpus, marks and remaining gaps;
+  §4 narrows the "payload opaque" bullet accordingly.
+  `docs/SCHEMA-VERSIONS.md` §2 records `meta.schema_version` as the
+  payload-shape marker (not a ledger); `docs/SESSION-EVIDENCE.md` §6.2
+  and `docs/SESSION-SURFACES.md` §6.2 cross-reference the verified
+  kind vocabulary.
 - `docs/SCHEMA.md` §4: the v15/v16 gap bullet now scopes "fixtures model
   v17" to v17's *layout* — the vendored v18/v19 stores pin the
   ledger-marker boundary, so "v17 only" no longer reads as if no v18

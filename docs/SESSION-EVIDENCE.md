@@ -178,15 +178,19 @@ the qa-pack provider (devin-assure #74).*
   provider).
 - `working_dir` = `sessions.working_directory` verbatim.
 
-### 6.2 `devin-chat` — `User/acp-messages/<session-uuid>.db` **(verified shape; kinds unstable)**
+### 6.2 `devin-chat` — `User/acp-messages/<session-uuid>.db` **(verified shape + versioned payload shapes)**
 
-*Verification status: shape verified across 2 real DBs by the
-`devin_internals` ACP parser (SURFACES §6.2); no qa-pack provider or
-agent-sessions source implements this surface yet.*
+*Verification status: table shape verified across 2 real DBs by the
+`devin_internals` ACP parser (SURFACES §6.2); payload shapes verified by
+the 2026-10-27 census of 36 live stores → `fixtures/message-schemas/`
+(`SCHEMA.md` §2). No qa-pack provider or agent-sessions source implements
+this surface yet.*
 
-- `messages` ordered by `position`. `kind` vocabulary observed live:
-  `user_message`, `agent_message`, `agent_thought`, `tool_call` — plus ACP
-  session-update kinds `tool_call`/`tool_call_update`.
+- `messages` ordered by `position`. `kind` vocabulary verified by census:
+  `user_message`, `agent_message`, `agent_thought`, `tool_call` under both
+  `meta.schema_version` 1 and 6; v6 adds `plan` and `subagent`. The ACP
+  session-update kind `tool_call_update` is documented here but was never
+  observed — its fixtures are `unverified` until real data lands.
 - `user_message` → `user`; `agent_message` and `agent_thought` →
   `assistant` (thinking text is agent-side content); `tool_call` →
   `EvidenceToolCall` (`payload` = decoded `payload` dict); a

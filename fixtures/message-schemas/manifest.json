@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "spec": "docs/SCHEMA.md §2",
+  "purpose": "versioned GUI/ACP message-payload shape contract — one fixture per (messages.kind, meta.schema_version) plus the store meta table per version; fixtures record field names/types/presence/closed vocabularies only, never message contents",
+  "fixture_format": "message-schema v1 — see README.md in this directory",
+  "provenance": {
+    "origin": "aggregate shape of 36 live stores under ~/.config/Devin/User/acp-messages (2 × meta.schema_version '1', 34 × '6'), inspected read-only 2026-10-27, Linux",
+    "method": "per-kind/path field-name + JSON-type census with per-parent presence counts; discriminator vocabularies enumerated only where they are a closed schema set (kind/sessionUpdate/status/type) — message text, ids, paths and all other values were never captured",
+    "reader": "devin_internals.message_schemas (load_corpus / verify_db); `python -m devin_internals.message_schemas verify <db|dir>` fails loudly on contradictions"
+  },
+  "store": {
+    "path": "User/acp-messages/<session-uuid>.db",
+    "tables": ["meta", "messages"],
+    "version_marker": "meta.schema_version (TEXT '1'|'6'); the messages table itself carries no version column"
+  },
+  "fixtures": [
+    {
+      "file": "_meta.schema-v1.json",
+      "table": "meta",
+      "kind": "_meta",
+      "meta_schema_version": 1,
+      "status": "verified",
+      "known_meta_keys": ["info", "message_count", "schema_version"],
+      "unverified_meta_keys": ["truncated", "janitor_managed"],
+      "observed": {"stores": 2}
+    },
+    {
+      "file": "_meta.schema-v6.json",
+      "table": "meta",
+      "kind": "_meta",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "known_meta_keys": ["info", "message_count", "schema_version", "truncated", "janitor_managed"],
+      "observed": {"stores": 34}
+    },
+    {
+      "file": "user_message.schema-v1.json",
+      "kind": "user_message",
+      "meta_schema_version": 1,
+      "status": "verified",
+      "observed": {"stores": 2, "rows": 152}
+    },
+    {
+      "file": "agent_message.schema-v1.json",
+      "kind": "agent_message",
+      "meta_schema_version": 1,
+      "status": "verified",
+      "observed": {"stores": 2, "rows": 209}
+    },
+    {
+      "file": "agent_thought.schema-v1.json",
+      "kind": "agent_thought",
+      "meta_schema_version": 1,
+      "status": "verified",
+      "observed": {"stores": 2, "rows": 1220}
+    },
+    {
+      "file": "tool_call.schema-v1.json",
+      "kind": "tool_call",
+      "meta_schema_version": 1,
+      "status": "verified",
+      "observed": {"stores": 2, "rows": 1158}
+    },
+    {
+      "file": "user_message.schema-v6.json",
+      "kind": "user_message",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 25, "rows": 456}
+    },
+    {
+      "file": "agent_message.schema-v6.json",
+      "kind": "agent_message",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 32, "rows": 7443}
+    },
+    {
+      "file": "agent_thought.schema-v6.json",
+      "kind": "agent_thought",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 32, "rows": 10427}
+    },
+    {
+      "file": "tool_call.schema-v6.json",
+      "kind": "tool_call",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 27, "rows": 17972}
+    },
+    {
+      "file": "plan.schema-v6.json",
+      "kind": "plan",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 9, "rows": 42},
+      "note": "never observed under v1 — a v1 store carrying it is an undocumented-kind contradiction"
+    },
+    {
+      "file": "subagent.schema-v6.json",
+      "kind": "subagent",
+      "meta_schema_version": 6,
+      "status": "verified",
+      "observed": {"stores": 10, "rows": 85},
+      "note": "never observed under v1 — a v1 store carrying it is an undocumented-kind contradiction"
+    },
+    {
+      "file": "tool_call_update.schema-v1.json",
+      "kind": "tool_call_update",
+      "meta_schema_version": 1,
+      "status": "unverified",
+      "observed": {"stores": 0, "rows": 0},
+      "note": "documented in docs/SESSION-EVIDENCE.md §6.2 (ACP session-update vocabulary) — absent from every sampled store"
+    },
+    {
+      "file": "tool_call_update.schema-v6.json",
+      "kind": "tool_call_update",
+      "meta_schema_version": 6,
+      "status": "unverified",
+      "observed": {"stores": 0, "rows": 0},
+      "note": "documented in docs/SESSION-EVIDENCE.md §6.2 (ACP session-update vocabulary) — absent from every sampled store"
+    }
+  ],
+  "kind_vocabulary": {
+    "verified": {
+      "1": ["agent_message", "agent_thought", "tool_call", "user_message"],
+      "6": ["agent_message", "agent_thought", "plan", "subagent", "tool_call", "user_message"]
+    },
+    "documented_unverified": ["tool_call_update"],
+    "note": "a messages.kind outside this union is an undocumented-kind contradiction — the intended drift signal"
+  },
+  "open_key_spaces": [
+    "meta (the key space is open per spec — undeclared keys are extra_meta_keys, never contradictions)",
+    "payload field spaces marked 'open': true (rawInput args, _meta children, ContentBlock variants, childMessages recursion)"
+  ]
+}

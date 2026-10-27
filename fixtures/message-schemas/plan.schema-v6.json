@@ -1,0 +1,55 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "plan",
+  "meta_schema_version": 6,
+  "status": "verified",
+  "provenance": "aggregate shape of live v6 stores (9 DBs, 42 rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["plan"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "status": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["current", "stale"],
+      "note": "plan freshness marker — Cognition-internal, vocabulary kept open"
+    },
+    "content": {
+      "types": ["dict"], "presence": "always", "status": "verified"
+    },
+    "content.sessionUpdate": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["plan"], "closed": true,
+      "note": "ACP session-update discriminator"
+    },
+    "content.entries": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "content.entries[].content": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "entry text"
+    },
+    "content.entries[].priority": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["medium"],
+      "documented_unverified": ["high", "low"],
+      "closed": true,
+      "note": "ACP PlanEntryPriority is high|medium|low — only 'medium' observed"
+    },
+    "content.entries[].status": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["pending", "in_progress", "completed"], "closed": true,
+      "note": "ACP PlanEntryStatus — the complete upstream enum, all three observed"
+    }
+  },
+  "notes": [
+    "kind 'plan' was never observed under meta.schema_version 1 — a v1 store carrying it reports an undocumented-kind contradiction (drift signal)."
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "user_message",
+  "meta_schema_version": 1,
+  "status": "verified",
+  "provenance": "aggregate shape of live v1 stores (2 DBs, 152 sampled rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["user_message"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under meta.schema_version 6 — absent from all sampled v1 payloads (0/152)"
+    },
+    "content": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "content[].sessionUpdate": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["user_message_chunk"], "closed": true,
+      "note": "ACP session-update discriminator"
+    },
+    "content[].content": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "note": "ACP ContentBlock"
+    },
+    "content[].content.type": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["text"],
+      "documented_unverified": ["image", "audio", "resource_link", "resource"],
+      "note": "ACP ContentBlock type — only 'text' observed under v1; other block types observed under v6"
+    },
+    "content[].content.text": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content[].content.data": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6 on non-text blocks (image payloads)"
+    },
+    "content[].content.mimeType": {
+      "types": ["str"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6 on non-text blocks"
+    },
+    "content[].content.resource": {
+      "types": ["dict"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6 — EmbeddedResource block (uri/mimeType/text)"
+    },
+    "content[].content._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "unverified",
+      "note": "first observed under v6 — cognition.ai/rich-content-node annotations"
+    },
+    "content[]._meta": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/* namespace — open; declared children asserted, others tolerated"
+    },
+    "content[]._meta[\"cognition.ai/clientMessageId\"]": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content[]._meta[\"cognition.ai/messageSubIndex\"]": {
+      "types": ["int"], "presence": "always", "status": "verified"
+    },
+    "content[]._meta[\"cognition.ai/timestamp\"]": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "ISO-8601 timestamp string"
+    },
+    "userEdits": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified"
+    },
+    "userEdits.files": {
+      "types": ["list"], "presence": "always", "status": "verified",
+      "note": "present on every observed userEdits; item lists observed empty under v1"
+    },
+    "userEdits.files[].kind": {
+      "types": ["str"], "presence": "always", "status": "unverified",
+      "note": "first observed under v6 — v1 files lists were empty"
+    },
+    "userEdits.files[].path": {
+      "types": ["str"], "presence": "always", "status": "unverified",
+      "note": "first observed under v6 — v1 files lists were empty"
+    },
+    "userEdits.files[].deletions": {
+      "types": ["int"], "presence": "always", "status": "unverified",
+      "note": "first observed under v6 — v1 files lists were empty"
+    },
+    "userEdits.files[].insertions": {
+      "types": ["int"], "presence": "always", "status": "unverified",
+      "note": "first observed under v6 — v1 files lists were empty"
+    },
+    "userEdits.reportId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.turnClientMessageId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.commands": {
+      "types": ["list"], "presence": "always", "status": "verified",
+      "note": "present on every observed v1 userEdits"
+    },
+    "userEdits.commands[].commandLine": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    }
+  },
+  "notes": [
+    "Fields marked verified under the v6 fixture and absent here were first observed under that store version.",
+    "v1 payloads predate the top-level 'id' field — 0/152 sampled v1 rows carried it."
+  ]
+}

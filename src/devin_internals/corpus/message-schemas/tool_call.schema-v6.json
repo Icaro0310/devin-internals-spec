@@ -1,0 +1,192 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "tool_call",
+  "meta_schema_version": 6,
+  "status": "verified",
+  "provenance": "aggregate shape of live v6 stores (27 DBs, 17972 rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["tool_call"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "present on every sampled v6 payload; absent under v1"
+    },
+    "sourceEventIsStart": {
+      "types": ["bool"], "presence": "always", "status": "verified",
+      "note": "true on the invocation row — absent under v1"
+    },
+    "sourceEventTimestampMs": {
+      "types": ["int"], "presence": "sometimes", "status": "verified",
+      "note": "epoch ms of the source ACP event; ~59% of sampled rows"
+    },
+    "sourceEventType": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "warnings": {
+      "types": ["list"], "presence": "always", "status": "verified",
+      "note": "present on every row; usually empty under v6"
+    },
+    "warnings[].level": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["debug"],
+      "note": "only 'debug' observed in sampled items — vocabulary kept open"
+    },
+    "warnings[].message": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content": {
+      "types": ["dict"], "presence": "always", "status": "verified"
+    },
+    "content.toolCallId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content.title": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "absent on a minority of rows — title is not guaranteed"
+    },
+    "content.status": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "values": ["completed", "failed"],
+      "documented_unverified": ["pending", "in_progress"],
+      "closed": true,
+      "note": "ACP ToolCallStatus is pending|in_progress|completed|failed — only terminal states observed; rows persist lifecycle snapshots. Absent on a minority of rows."
+    },
+    "content.kind": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "values": ["edit", "execute", "fetch", "read", "search"],
+      "documented_unverified": ["delete", "move", "think", "switch_mode", "other"],
+      "closed": true,
+      "note": "ACP ToolKind — upstream enum completed by documented_unverified"
+    },
+    "content.rawInput": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "per-tool argument space — children not enumerated (command/file_path/shell_id/…). Absent on a minority of rows."
+    },
+    "content.content": {
+      "types": ["list"], "presence": "sometimes", "status": "verified"
+    },
+    "content.content[].type": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["content", "diff"],
+      "documented_unverified": ["terminal"],
+      "closed": true,
+      "note": "ACP ToolCallContent union — 'terminal' variant documented upstream, never observed"
+    },
+    "content.content[].content": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "inner ACP ContentBlock (type/text/name/uri/resource) — variants open"
+    },
+    "content.content[].path": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[].oldText": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[].newText": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "diff items"
+    },
+    "content.content[]._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "observed children: cognition.ai/linesAdded, cognition.ai/linesRemoved"
+    },
+    "content.locations": {
+      "types": ["list"], "presence": "sometimes", "status": "verified"
+    },
+    "content.locations[].path": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content.locations[].line": {
+      "types": ["int"], "presence": "sometimes", "status": "verified"
+    },
+    "content.locations[]._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "observed child: cognition.ai/endLine"
+    },
+    "content._meta": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/* namespace — open; declared children asserted, others tolerated"
+    },
+    "content._meta[\"cognition.ai/inferenceToolName\"]": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/timestamp\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "ISO-8601 timestamp string; always under v1, sometimes under v6"
+    },
+    "content._meta[\"cognition.ai/cwd\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/commandNames\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/terminalPreview\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/background\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/backgroundCommand\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/backgroundShellId\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/backgroundRequested\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/canceled\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/rejected\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/suppressApproval\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/eventType\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/toolName\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/timeoutMs\"]": {
+      "types": ["int"], "presence": "sometimes", "status": "verified"
+    },
+    "content._meta[\"cognition.ai/terminal_exit\"]": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "observed children: exit_code (int), signal (null), terminal_id (str)"
+    },
+    "content._meta[\"cognition.ai/questions\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "ask-user question items — children not enumerated"
+    },
+    "content._meta[\"cognition.ai/originalQuestions\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "verified",
+      "open": true
+    },
+    "content._meta[\"cognition.ai/answers\"]": {
+      "types": ["list"], "presence": "sometimes", "status": "verified",
+      "open": true
+    }
+  },
+  "notes": [
+    "content.content[] items are the ACP ToolCallContent union — 'terminal' is the only documented variant never observed.",
+    "content.rawInput children are the per-tool argument space (open) — new tool arguments are not contradictions."
+  ]
+}

@@ -149,7 +149,7 @@ Candidates, first existing wins (same roots as `devin-search/paths.py`):
   the schema version.
 - Full field reference: `SCHEMA.md` §1.
 
-### 6.2 `devin-chat` — `User/acp-messages/<session-uuid>.db` **(verified across 2 DBs)**
+### 6.2 `devin-chat` — `User/acp-messages/<session-uuid>.db` **(verified across 2 DBs; payload shapes verified across 36)**
 
 Candidate dirs, first existing wins (mirrors `paths.py` `acp_dir_candidates`):
 
@@ -163,13 +163,20 @@ One file per GUI session; the filename uuid is the native id.
 
 - `meta` (`key`,`value`): session metadata — key space **open**, do not
   enumerate keys that carry content; read only the keys the layout section
-  of the ACP parser documents as metadata.
-- `messages` (`position`,`kind`,`payload`): ordered ACP log;
-  `kind`/`payload` **(unstable)** — count positions for `event_count`,
-  never parse payload content for metadata.
+  of the ACP parser documents as metadata. Verified keys per store version
+  live in `fixtures/message-schemas/_meta.schema-v*.json`
+  (`meta.schema_version` = `'1'`/`'6'`).
+- `messages` (`position`,`kind`,`payload`): ordered ACP log. The
+  session-surface parser still only counts positions for `event_count`
+  and never parses payload content for metadata — but the payload
+  *shape* is no longer unversioned: the verified per-(kind,
+  `meta.schema_version`) fixtures live in `fixtures/message-schemas/`
+  and are enforced by `devin_internals.message_schemas.verify_db`
+  (`SCHEMA.md` §2).
 - No migration ledger: parser gates on table shape (`meta` + `messages`
   present) → `unsupported-format` otherwise. `source_version`: `acp-v0`
-  until a real version marker is observed.
+  (the store-level marker is unchanged — `meta.schema_version` versions
+  payload shapes, not the table DDL).
 - Full field reference: `SCHEMA.md` §2.
 
 ### 6.3 `copilot-cli` — `session-state` **(spec v3.4.4)**
