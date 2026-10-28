@@ -98,6 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   concurrency) and gains the `pull_request_review_comment` trigger so
   fix-commit replies re-evaluate the gate on the same head;
   `tests/test_auto_approve_gate.py` pins the caller contract.
+- `actions/setup-python` bumped from `v7.0.0` to `v7.1.0` in
+  `tests.yml` (Dependabot).
 
 ### Added
 
