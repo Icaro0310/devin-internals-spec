@@ -235,10 +235,35 @@ c.set("last_ts", newest_ts)
 c.commit()
 ```
 
+## Heartbeat ledger (`devin_internals.heartbeat`)
+
+Shared "am I alive" ledger: any tool, cron job or daemon appends one
+JSONL beat (`ts`, `tool` sanitized to `[a-z0-9-]{1,64}`, `event`
+success/failure, `detail`) to `DEVIN_HEARTBEAT_FILE` →
+`$XDG_STATE_HOME/devin/heartbeats.jsonl`, and silence sensors such as
+`ecosystem_sync --freshness` fold it into per-tool
+`last_success_at`/`last_failure_at` to detect dead-but-alive components.
+Emit is fail-open — a broken ledger never breaks the tool it observes —
+and readers skip malformed lines.
+
+```bash
+python3 heartbeat.py emit <tool> [--fail] [--detail txt]   # exit 0 always
+python3 heartbeat.py run  <tool> -- <cmd> [args...]        # exit = cmd rc
+python3 heartbeat.py probe <tool> -- <cmd> [args...]       # daemon health checks
+```
+
+`hb run`/`hb probe` wrap a command without a shell, beat success iff
+`rc == 0`, and pass the command's rc through — instrument crontabs, not
+tool internals. `heartbeat.js` (shipped beside the module) is the
+zero-dep node >=18 ESM mirror writing the same line contract. Both files
+are single-file and vendored verbatim by other repos — they never import
+from `devin_internals`. Spec: [docs/HEARTBEAT.md](docs/HEARTBEAT.md).
+
 ## Packaged synthetic corpora (`devin_internals.corpus_access`)
 
-The session-corpus and install-states fixtures ship inside the wheel —
-downstream repos consume them by contract instead of vendoring copies.
+The session-corpus, install-states, schema-versions and message-schemas
+fixtures ship inside the wheel — downstream repos consume them by
+contract instead of vendoring copies.
 
 ```python
 from devin_internals.corpus_access import corpus_root, materialize_corpus
@@ -256,6 +281,15 @@ byte-identical. The generator modules (`python -m
 devin_internals.session_corpus` / `install_states`) can also rebuild
 both corpora from scratch; `pip install "devin-internals-spec[corpus]"`
 is the marker extra documenting the contract.
+
+`message-schemas` is data rather than generated: versioned GUI/ACP
+message-payload *shape* fixtures (docs/SCHEMA.md §2 — one fixture per
+`messages.kind` × `meta.schema_version`, shape only, never contents),
+consumed by `devin_internals.message_schemas`:
+
+```bash
+python -m devin_internals.message_schemas verify ~/.config/Devin/User/acp-messages
+```
 
 ## Works with Devin alone (Devin-only mode)
 

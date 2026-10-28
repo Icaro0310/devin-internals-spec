@@ -1,0 +1,61 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "subagent",
+  "meta_schema_version": 6,
+  "status": "verified",
+  "provenance": "aggregate shape of live v6 stores (10 DBs, 85 rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["subagent"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "agentId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "depth": {
+      "types": ["int"], "presence": "always", "status": "verified",
+      "note": "nesting depth of the subagent"
+    },
+    "isBackground": {
+      "types": ["bool"], "presence": "always", "status": "verified"
+    },
+    "profile": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "status": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["running", "completed", "failed"],
+      "note": "lifecycle — Cognition-internal, vocabulary kept open"
+    },
+    "success": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified",
+      "note": "~91% of sampled rows — absent while the subagent is still running"
+    },
+    "summary": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "set on completion — same presence pattern as success"
+    },
+    "task": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "title": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "childMessages": {
+      "types": ["list"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "recursive nested messages sharing the same per-kind envelopes — children not enumerated (recursion is open)"
+    }
+  },
+  "notes": [
+    "kind 'subagent' was never observed under meta.schema_version 1 — a v1 store carrying it reports an undocumented-kind contradiction (drift signal).",
+    "childMessages[] elements reuse the message kinds documented in this corpus (observed: user/agent message envelopes, tool_call, plan) — kept open since recursion depth and mix are session-dependent."
+  ]
+}

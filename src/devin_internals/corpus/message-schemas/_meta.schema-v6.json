@@ -1,0 +1,52 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "meta",
+  "kind": "_meta",
+  "meta_schema_version": 6,
+  "status": "verified",
+  "provenance": "aggregate shape of 34 live v6 stores inspected 2026-10-27 (Linux) — key names/types only, no values captured",
+  "fields": {
+    "schema_version": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["6"], "closed": true,
+      "note": "store version marker, integer encoded as TEXT — selects this fixture"
+    },
+    "message_count": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "integer encoded as TEXT; equals the messages row count (see store_checks)"
+    },
+    "info": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "json_text": true,
+      "note": "session metadata as a JSON-encoded string"
+    },
+    "info.title": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "absent on a minority of stores (present on 32/36 sampled v1+v6 stores)"
+    },
+    "info.configOptions": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "info.availableCommands": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "truncated": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "values": ["0", "1"], "closed": true,
+      "note": "boolean encoded as TEXT; present on 34/36 sampled v6 stores"
+    },
+    "janitor_managed": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "observed on 5/36 v6 stores (2026-10-27); value is an opaque token — vocabulary not enumerated; spec keeps the key space open"
+    }
+  },
+  "store_checks": [
+    "message_count_equals_row_count",
+    "positions_contiguous_zero_based"
+  ],
+  "notes": [
+    "The meta key space is open per spec — undeclared keys are tolerated and reported as extra_meta_keys, never contradictions."
+  ]
+}

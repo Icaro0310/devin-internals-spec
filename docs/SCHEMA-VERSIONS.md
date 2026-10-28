@@ -44,14 +44,21 @@ Known/supported ≠ verified: the detector reports `verified: true` only at
   (see `docs/SCHEMA.md` §4) — the version *numbers* and count are the
   contract surface.
 
-## 2. `User/acp-messages/<session-uuid>.db` — no version marker
+## 2. `User/acp-messages/<session-uuid>.db` — table-shape gate; `meta.schema_version` marks payload shape
 
 | store | marker | latest known | evidence |
 |---|---|---|---|
-| `acp-messages/*.db` | none — gated on table shape (`meta` + `messages` present) | shape as spec'd in `docs/SCHEMA.md` §2 | **(gated, verified)** 2026-09-29 across 2 DBs; still present 2026-10-22 |
+| `acp-messages/*.db` | table shape (`meta` + `messages` present) gates the store itself; `meta.schema_version` (TEXT `'1'`/`'6'`) versions the `messages.payload` *shapes* — not a migration ledger | payload shapes versioned per `schema_version` in `fixtures/message-schemas/` (`docs/SCHEMA.md` §2) | **(gated, verified)** table shape 2026-09-29 across 2 DBs; **payload-shape census** 2026-10-27 across 36 DBs (2 v1, 34 v6) |
 
-If Cognition adds a version key or a third table, the gate fails loudly the
-next time a DB is opened — that is the intended drift signal.
+`meta.schema_version` is **not** a `refinery_schema_history`-style ledger
+and says nothing about the table DDL — it selects which
+`fixtures/message-schemas/<kind>.schema-v<N>.json` fixture set a payload
+is verified against. `KNOWN_ACP_SCHEMA_VERSIONS = {1, 6}` in
+`parsers/acp_messages.py` is the accepted set; a new value or a
+`messages.kind`/field outside the fixtures fails loudly in
+`devin_internals.message_schemas.verify_db` — the intended drift signal.
+If Cognition adds a version key or a third table, the shape gate fails
+loudly the next time a DB is opened, same posture.
 
 ## 3. `User/globalStorage/state.vscdb` — `PRAGMA user_version`
 

@@ -7,7 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `src/devin_internals/heartbeat.py` — universal heartbeat ledger
+  (docs/HEARTBEAT.md): stdlib-only, single file vendored verbatim by
+  other repos. `emit_heartbeat()` appends one JSONL beat
+  (`ts`/`tool`/`event`/`detail`) to `DEVIN_HEARTBEAT_FILE` →
+  `$XDG_STATE_HOME/devin/heartbeats.jsonl`, never raising — a broken
+  ledger must not break the tool it observes; `read_heartbeats()` folds
+  the file into per-tool `last_success_at`/`last_failure_at`/
+  `last_detail`, skipping malformed lines. `hb run`/`hb probe` wrap a
+  command without a shell (success iff `rc == 0`, failure detail
+  `rc=<n>` + output tail, child's rc passed through) so crontabs are
+  instrumented instead of tool internals; `python3 heartbeat.py
+  emit|run|probe` CLI mirrors it.
+- `src/devin_internals/heartbeat.js` — zero-dep node >=18 ESM mirror
+  (`emitHeartbeat`/`readHeartbeats`/`run` + executable CLI block)
+  writing the same line contract; shipped as package data.
+- `docs/HEARTBEAT.md` — the ledger spec: location resolution, JSONL
+  line contract, fail-open emit/read rules, the `run`/`probe` wrapper
+  pattern, and the `ecosystem_sync --freshness` reader contract
+  (per-tool threshold matrix; silence when `now - last_success_at >
+  threshold`, error streak when `last_failure_at > last_success_at`).
+- `tests/test_heartbeat.py` — ledger-path resolution, JSONL emit +
+  dir creation, never-raises emit, max-ts aggregation over malformed
+  lines, run/probe rc passthrough and failure details, tool
+  sanitization, detail truncation, direct-file CLI coverage, and
+  node-mirror tests skipped when node is absent.
+
+## [0.3.3] - 2026-10-28
+
+### Added
+
+- `fixtures/message-schemas/` — versioned GUI/ACP message-payload shape
+  corpus (docs/SCHEMA.md §2, new fourth packaged corpus
+  `devin_internals/corpus/message-schemas/`): one fixture per
+  (`messages.kind`, `meta.schema_version`) — `user_message`,
+  `agent_message`, `agent_thought`, `tool_call` under v1+v6, plus
+  v6-only `plan`/`subagent` and documented-but-unobserved
+  `tool_call_update` under both — plus `_meta` fixtures per store
+  version. Fields carry `verified`/`unverified` marks: verified claims
+  (field present on every observed parent, types, closed discriminator
+  vocabularies, `message_count`/position store invariants) are asserted
+  loudly; unverified claims are never asserted — observing one is
+  reported as a promotion. Built from a shape census of 36 live stores
+  (2 v1, 34 v6) — field names/types only, never values.
+- `src/devin_internals/message_schemas.py` — stdlib-only loader +
+  verifier for the corpus (`load_corpus`, `verify_payload`,
+  `verify_db`, `extract_shape`) with `python -m
+  devin_internals.message_schemas verify|extract` CLI; read-only SQLite
+  access, corrupt stores report contradictions instead of crashing.
+- `fixtures/message-schemas/README.md` — the `message-schema` format
+  v1 spec (paths, `always`/`sometimes` presence, `open`/`closed`/
+  `json_text` keys, store_checks, contradiction/promotion/note tiers).
+- `tests/test_message_schemas.py` — corpus loads + filename↔content
+  agreement, format rejection cases, verified/unverified assertion
+  semantics, fail-loud `verify_db` cases (missing field, unknown
+  kind/version, message-count lie, position gap, corrupt file), the
+  install-states artifacts as real fail-loud evidence, privacy guards
+  (no content values in fixtures), and a skip-if-absent live-store
+  check.
+
 ### Changed
+
+
+- `src/devin_internals/fixtures.py`: `create_acp_messages_db` payloads
+  now model the real meta.schema_version=6 shapes (synthetic values,
+  real field names) so generated stores pass `verify_db`; the
+  install-states `devin-chat/healthy` artifact was regenerated to match.
+- `docs/SCHEMA.md` §2 documents the corpus, marks and remaining gaps;
+  §4 narrows the "payload opaque" bullet accordingly.
+  `docs/SCHEMA-VERSIONS.md` §2 records `meta.schema_version` as the
+  payload-shape marker (not a ledger); `docs/SESSION-EVIDENCE.md` §6.2
+  and `docs/SESSION-SURFACES.md` §6.2 cross-reference the verified
+  kind vocabulary.
+- `docs/SCHEMA.md` §4: the v15/v16 gap bullet now scopes "fixtures model
+  v17" to v17's *layout* — the vendored v18/v19 stores pin the
+  ledger-marker boundary, so "v17 only" no longer reads as if no v18
+  fixture exists.
 
 - `docs/SCHEMA-VERSIONS.md` §4 clarified: canary registration under
   `LATEST_KNOWN_SCHEMA` is a documented step of the drift protocol that
@@ -27,6 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   concurrency) and gains the `pull_request_review_comment` trigger so
   fix-commit replies re-evaluate the gate on the same head;
   `tests/test_auto_approve_gate.py` pins the caller contract.
+- `actions/setup-python` bumped from `v7.0.0` to `v7.1.0` in
+  `tests.yml` (Dependabot).
 
 ### Added
 

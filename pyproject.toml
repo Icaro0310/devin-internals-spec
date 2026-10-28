@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-internals-spec"
-version = "0.3.2"
+version = "0.3.3"
 description = "Documented internals of Devin Desktop/CLI session stores, schema-version detection and test fixtures (unofficial)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,12 +24,15 @@ devin-inspect = "devin_internals.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-# Both committed corpora (session-corpus, install-states) ship as package
+# All committed corpora (session-corpus, install-states, schema-versions,
+# message-schemas) ship as package
 # data. Hidden entries need explicit `.*` segments — recursive `**`/`*
 # globs skip dotfiles and never descend into dotdirs (.codex, .config,
 # .local, .copilot, .vscode-server, .gitkeep leaves).
 [tool.setuptools.package-data]
 devin_internals = [
+    # vendored single-file mirror of heartbeat.py (docs/HEARTBEAT.md)
+    "heartbeat.js",
     "corpus/**/*",
     "corpus/**/.*",
     "corpus/**/.*/**",

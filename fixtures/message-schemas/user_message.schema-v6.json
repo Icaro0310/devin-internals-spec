@@ -1,0 +1,112 @@
+{
+  "fixture": "message-schema",
+  "format_version": 1,
+  "store": "User/acp-messages/<session-uuid>.db",
+  "table": "messages",
+  "kind": "user_message",
+  "meta_schema_version": 6,
+  "status": "verified",
+  "provenance": "aggregate shape of live v6 stores (25 DBs, 456 rows) inspected 2026-10-27 (Linux) — field names/types only, no values captured",
+  "fields": {
+    "kind": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["user_message"], "closed": true,
+      "note": "mirrors the messages.kind column"
+    },
+    "id": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "present on every sampled v6 payload; absent under v1"
+    },
+    "content": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "content[].sessionUpdate": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["user_message_chunk"], "closed": true,
+      "note": "ACP session-update discriminator"
+    },
+    "content[].content": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "note": "ACP ContentBlock"
+    },
+    "content[].content.type": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "values": ["text", "image", "resource"],
+      "documented_unverified": ["audio", "resource_link"],
+      "note": "ACP ContentBlock type — upstream union also defines audio/resource_link, never observed"
+    },
+    "content[].content.text": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "absent on non-text blocks (image/resource)"
+    },
+    "content[].content.data": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "non-text block payload (observed on image blocks)"
+    },
+    "content[].content.mimeType": {
+      "types": ["str"], "presence": "sometimes", "status": "verified"
+    },
+    "content[].content.resource": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "ACP EmbeddedResource (uri/mimeType/text) — children not enumerated"
+    },
+    "content[].content._meta": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/rich-content-node annotations {code,type,displayText,url} and cognition.ai/mention-display-text — open space"
+    },
+    "content[]._meta": {
+      "types": ["dict"], "presence": "always", "status": "verified",
+      "open": true,
+      "note": "cognition.ai/* namespace — open; declared children asserted, others tolerated"
+    },
+    "content[]._meta[\"cognition.ai/clientMessageId\"]": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "content[]._meta[\"cognition.ai/messageSubIndex\"]": {
+      "types": ["int"], "presence": "always", "status": "verified"
+    },
+    "content[]._meta[\"cognition.ai/timestamp\"]": {
+      "types": ["str"], "presence": "always", "status": "verified",
+      "note": "ISO-8601 timestamp string"
+    },
+    "userEdits": {
+      "types": ["dict"], "presence": "sometimes", "status": "verified"
+    },
+    "userEdits.files": {
+      "types": ["list"], "presence": "always", "status": "verified"
+    },
+    "userEdits.files[].kind": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.files[].path": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.files[].deletions": {
+      "types": ["int"], "presence": "sometimes", "status": "verified",
+      "note": "absent on some entries — not guaranteed per file record"
+    },
+    "userEdits.files[].insertions": {
+      "types": ["int"], "presence": "sometimes", "status": "verified",
+      "note": "absent on some entries — not guaranteed per file record"
+    },
+    "userEdits.reportId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.turnClientMessageId": {
+      "types": ["str"], "presence": "always", "status": "verified"
+    },
+    "userEdits.commands": {
+      "types": ["list"], "presence": "sometimes", "status": "unverified",
+      "note": "observed under meta.schema_version 1 only (present on every v1 userEdits, never under v6)"
+    },
+    "userEdits.commands[].commandLine": {
+      "types": ["str"], "presence": "always", "status": "unverified",
+      "note": "observed under v1 only — see parent"
+    }
+  },
+  "notes": [
+    "userEdits appeared on ~31% of sampled v6 user_message rows; commands[] is a v1-era shape kept as unverified documentation."
+  ]
+}

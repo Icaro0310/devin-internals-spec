@@ -18,9 +18,8 @@ uv tool install "devin-internals-spec"
 
 ## Devin paths
 
-Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\` (capitalized `Devin`).
-Ecosystem bookkeeping — `machine-id`, `devin-profile.json`, `hooks.json`, `plans.jsonl`, `metrics/` — anchors under `%APPDATA%\Devin\.devin-ecosystem\`.
-`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` override the roots; `DEVIN_MACHINE_ID`/`DEVIN_ECOSYSTEM_PROFILE` override identity. Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
+Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\`.
+Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
 
 ## Environment notes
 

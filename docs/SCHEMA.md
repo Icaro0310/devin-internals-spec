@@ -137,11 +137,67 @@ Explicit indexes (v17): `idx_sessions_activity` (`last_activity_at DESC`),
 
 | table | columns | notes |
 |---|---|---|
-| `meta` | `key` TEXT PK, `value` TEXT NOT NULL | session-level metadata; **key space is open — not enumerated** (values are row content) |
-| `messages` | `position` INTEGER PK, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL | ordered ACP message log; `kind`/`payload` formats **(unstable)** |
+| `meta` | `key` TEXT PK, `value` TEXT NOT NULL | session-level metadata; **key space is open — undeclared keys are tolerated** (the `_meta` fixtures below pin the verified keys per store version) |
+| `messages` | `position` INTEGER PK, `kind` TEXT NOT NULL, `payload` TEXT NOT NULL | ordered ACP message log; payload *shape* is versioned by `meta.schema_version` — see the message-schema corpus below |
 
 No migration ledger exists here — the parser gates on table shape
-(`meta` + `messages` present). **(both verified 2026-09-29 across 2 DBs)**
+(`meta` + `messages` present). **(table shape verified 2026-09-29 across
+2 DBs; payload/meta shape census 2026-10-27 across 36 DBs — 2 v1, 34 v6)**
+
+### Message payload shapes — `fixtures/message-schemas/` (executable)
+
+The JSON inside `messages.payload` was opaque until 2026-10-27, when a
+shape census of 36 live stores (field names and JSON types only — never
+values) produced the versioned fixture corpus under
+`fixtures/message-schemas/` (also packaged as
+`devin_internals/corpus/message-schemas/`). One fixture per
+(`messages.kind`, `meta.schema_version`) pair, plus a `_meta` fixture
+per store version for the `meta` table itself. The fixture format and
+verification semantics are documented in
+`fixtures/message-schemas/README.md` and enforced by
+`src/devin_internals/message_schemas.py` +
+`tests/test_message_schemas.py`.
+
+**Field marks** — every declared field is either `verified` (observed in
+real captured stores; *asserted* by `verify_db` — a store that
+contradicts one fails loudly) or `unverified` (documented in the
+evidence or in a sibling fixture for another store version, never
+confirmed — *never asserted*; observing one is reported as a promotion
+candidate). A real store contradicting a verified claim is the drift
+detector doing its job: demote the mark honestly rather than suppress
+the failure.
+
+**Versioned kind vocabulary** (verified by census):
+
+| `meta.schema_version` | observed `messages.kind` |
+|---|---|
+| `1` | `user_message`, `agent_message`, `agent_thought`, `tool_call` |
+| `6` | those four + `plan`, `subagent` (v6 additions — never observed under v1) |
+
+`tool_call_update` stays **documented-only** (SESSION-EVIDENCE.md §6.2
+lists it in the session-update vocabulary): it carries `unverified`
+fixtures under both versions and was absent from all 36 sampled stores —
+a real sighting reports a promotion, never a failure.
+
+**Store-level invariants** (verified, `store_checks` on the `_meta`
+fixtures): `meta.message_count` (TEXT integer) equals the `messages`
+row count, and `messages.position` is a contiguous 0-based sequence —
+true on all 36 sampled stores.
+
+**Run it:** `python -m devin_internals.message_schemas verify <db|dir>`
+(exit 1 on contradictions, graded notes otherwise) and
+`... extract <db>` (prints a store's aggregated shape — an authoring
+aid; values are never recorded).
+
+**Still open/unverified:** the `meta` key space itself (extra keys are
+`extra_meta_keys` notes, never contradictions); `cognition.ai/*` `_meta`
+namespaces and `content.rawInput` argument spaces (`open` — declared
+children are asserted, undeclared ones tolerated);
+`subagent.childMessages[]` recursion (open); open vocabularies such as
+`warnings[].level` and `content.status` beyond their observed values
+(`closed` only where the upstream enum is fully documented);
+`plan`/`subagent` under v1 are contradictions *by absence of observed
+evidence*, not by proof of impossibility.
 
 ## 3. `User/globalStorage/state.vscdb` — VS Code-style KV store
 
@@ -169,13 +225,18 @@ UTF-8 with `errors="replace"`. Individual `windsurfSpace.*` key names are
   pins that boundary).
 - **v15/v16 DDL**: only v17's DDL was inspected. The real migration list
   (names/deltas) lives in `refinery_schema_history` *rows*, which are row
-  content and were not read. Fixtures therefore model **v17 only**; the
-  `schema_version` knob fakes the ledger marker, not the layout. Documented
-  gap, not a guess — fill in when old-DB evidence is available.
+  content and were not read. Fixtures therefore model **v17's layout
+  only** — the vendored v18/v19 stores (above) pin the ledger-marker
+  boundary, not DDL evidence; the `schema_version` knob fakes the marker,
+  not the layout. Documented gap, not a guess — fill in when old-DB
+  evidence is available.
 - **JSON/text payload columns** (`chat_message`, `metadata`, `cogs_json`,
-  `workspace_dirs`, `tool_call_*_json`, `rendered_html`, acp `payload`,
+  `workspace_dirs`, `tool_call_*_json`, `rendered_html`,
   `ItemTable.value` semantics): column exists (verified) but the inner format
   is opaque — **unstable**. Do not build on their inner structure without
-  fresh evidence.
+  fresh evidence. **Exception:** acp `messages.payload` is no longer fully
+  opaque — the verified subset of its per-(kind, version) shape lives in
+  `fixtures/message-schemas/` (§2); everything outside the declared
+  verified fields remains unstable.
 - **`session_locks/`**, `skill_events_spool.lock`, `sessions.db-wal` siblings:
   observed on disk, not yet spec'd.
