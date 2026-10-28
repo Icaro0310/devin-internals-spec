@@ -18,9 +18,8 @@ uv tool install "devin-internals-spec"
 
 ## Devin paths
 
-Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\` (capitalized `Devin`).
-Ecosystem bookkeeping — `machine-id`, `devin-profile.json`, `hooks.json`, `plans.jsonl`, `metrics/` — anchors under `%APPDATA%\Devin\.devin-ecosystem\`.
-`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` override the roots; `DEVIN_MACHINE_ID`/`DEVIN_ECOSYSTEM_PROFILE` override identity. Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
+Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\`.
+Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
 
 ## Environment notes
 
@@ -44,7 +43,7 @@ Ecosystem bookkeeping — `machine-id`, `devin-profile.json`, `hooks.json`, `pla
 
 Zscaler é comum em ambientes corporativos e se comporta diferente de um proxy genérico. Dois produtos importam aqui: **Zscaler Internet Access (ZIA)**, proxy com inspeção de TLS, e **Zscaler Private Access (ZPA)**, túnel/VPN para aplicações internas.
 
-- **Certificado raiz:** a inspeção de TLS da ZIA substitui o certificado dos sites pelo da Zscaler. Sem a raiz no bundle correto, `pip`/`uv`/`npm`/`git` falham com `SSL: CERTIFICATE_VERIFY_FAILED`. A raiz vive no repositório de certificados do Windows; instalada por política ou pelo Client Connector ela costuma ficar no store da máquina, que o `certmgr.msc` não mostra (ele abre só o do usuário). Para a raiz de máquina use `certlm.msc` → Trusted Root Certification Authorities → Zscaler → Export, ou `Get-ChildItem Cert:\LocalMachine\Root | ? Subject -like "*Zscaler*"`; se ela só estiver no store do usuário (`Cert:\CurrentUser\Root`), aí o `certmgr.msc` serve. As variáveis abaixo exigem PEM (Base-64): no assistente do certmgr/certlm escolha "Base-64 encoded X.509 (.CER)"; o `Export-Certificate` gera DER por padrão, converta com `certutil -encode zscaler-root.cer zscaler-root.pem`, ou peça o PEM ao TI. Cada ferramenta lê a raiz de um lugar diferente:
+- **Certificado raiz:** a inspeção de TLS da ZIA substitui o certificado dos sites pelo da Zscaler. Sem a raiz no bundle correto, `pip`/`uv`/`npm`/`git` falham com `SSL: CERTIFICATE_VERIFY_FAILED`. A raiz vive no repositório de certificados do Windows (instalada por política ou pelo Client Connector), que tem duas lojas: `certmgr.msc` cobre o usuário atual e `certlm.msc` cobre a máquina; a raiz pode estar em só uma delas. Exporte pelo assistente (Trusted Root Certification Authorities → Zscaler → Export) escolhendo "Base-64 encoded X.509 (.CER)", que já sai em PEM; via PowerShell, `Get-ChildItem Cert:\CurrentUser\Root, Cert:\LocalMachine\Root | ? Subject -like "*Zscaler*"` acha o cert nas duas lojas, mas `Export-Certificate` grava DER, não PEM; converta com `certutil -encode zscaler-root.cer zscaler-root.pem`. Em alternativa peça o PEM ao TI. Cada ferramenta lê a raiz de um lugar diferente:
   ```powershell
   $env:REQUESTS_CA_BUNDLE="C:\path\zscaler-root.pem"   # pip e ferramentas baseadas em requests
   $env:SSL_CERT_FILE="C:\path\zscaler-root.pem"        # uv, urllib do Python (inclui o check de manifest do DevKit)
