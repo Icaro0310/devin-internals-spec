@@ -31,6 +31,8 @@ where = ["src"]
 # .local, .copilot, .vscode-server, .gitkeep leaves).
 [tool.setuptools.package-data]
 devin_internals = [
+    # vendored single-file mirror of heartbeat.py (docs/HEARTBEAT.md)
+    "heartbeat.js",
     "corpus/**/*",
     "corpus/**/.*",
     "corpus/**/.*/**",
