@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `src/devin_internals/heartbeat.py` — universal heartbeat ledger
+  (docs/HEARTBEAT.md): stdlib-only, single file vendored verbatim by
+  other repos. `emit_heartbeat()` appends one JSONL beat
+  (`ts`/`tool`/`event`/`detail`) to `DEVIN_HEARTBEAT_FILE` →
+  `$XDG_STATE_HOME/devin/heartbeats.jsonl`, never raising — a broken
+  ledger must not break the tool it observes; `read_heartbeats()` folds
+  the file into per-tool `last_success_at`/`last_failure_at`/
+  `last_detail`, skipping malformed lines. `hb run`/`hb probe` wrap a
+  command without a shell (success iff `rc == 0`, failure detail
+  `rc=<n>` + output tail, child's rc passed through) so crontabs are
+  instrumented instead of tool internals; `python3 heartbeat.py
+  emit|run|probe` CLI mirrors it.
+- `src/devin_internals/heartbeat.js` — zero-dep node >=18 ESM mirror
+  (`emitHeartbeat`/`readHeartbeats`/`run` + executable CLI block)
+  writing the same line contract; shipped as package data.
+- `docs/HEARTBEAT.md` — the ledger spec: location resolution, JSONL
+  line contract, fail-open emit/read rules, the `run`/`probe` wrapper
+  pattern, and the `ecosystem_sync --freshness` reader contract
+  (per-tool threshold matrix; silence when `now - last_success_at >
+  threshold`, error streak when `last_failure_at > last_success_at`).
+- `tests/test_heartbeat.py` — ledger-path resolution, JSONL emit +
+  dir creation, never-raises emit, max-ts aggregation over malformed
+  lines, run/probe rc passthrough and failure details, tool
+  sanitization, detail truncation, direct-file CLI coverage, and
+  node-mirror tests skipped when node is absent.
+
 ## [0.3.3] - 2026-10-28
 
 ### Added
