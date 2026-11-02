@@ -18,8 +18,9 @@ uv tool install "devin-internals-spec"
 
 ## Devin paths
 
-Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\`.
-Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
+Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\` (capitalized `Devin`).
+Ecosystem bookkeeping — `machine-id`, `devin-profile.json`, `hooks.json`, `plans.jsonl`, `metrics/` — anchors under `%APPDATA%\Devin\.devin-ecosystem\`.
+`DEVIN_DATA_DIR`/`DEVIN_CONFIG_DIR` override the roots; `DEVIN_MACHINE_ID`/`DEVIN_ECOSYSTEM_PROFILE` override identity. Use `--data-dir`/`--config-dir` where the tool documents them for non-default locations.
 
 ## Environment notes
 
@@ -36,7 +37,7 @@ Use `--data-dir`/`--config-dir` where the tool documents them for non-default lo
 - **Blocked installers:** if winget/Store are disabled by policy, `uv` installs as a standalone binary, download the GitHub release zip, extract to `%LOCALAPPDATA%\bin`, add it to PATH.
 - **Long paths:** keep checkout/install roots short (`C:\dev`), MAX_PATH (260 chars) can still bite inside virtualenvs; `LongPathsEnabled` needs admin, short roots do not.
 - **EDR/antivirus:** if a scan kills the install, retry with an exclusion or ask IT to allowlist `%LOCALAPPDATA%\uv` and `%USERPROFILE%\.local\bin`. These tools never elevate or listen on the network by default.
-- **Offline/air-gapped:** `pip download <package> -d wheels\` on a connected machine, copy the folder, then `pip install --no-index --find-links wheels\` on the target (pure-Python tools; native deps need a matching platform wheel). For `source_only` tools installed from a copied checkout, stage the build backend too (`pip download setuptools wheel`), then install with `pip install --no-index --find-links wheels\ --no-build-isolation .` inside the checkout.
+- **Offline/air-gapped:** `pip download <package> -d wheels\` on a connected machine, copy the folder, then `pip install --no-index --find-links wheels\` on the target (pure-Python tools; native deps need a matching platform wheel). For `source_only` tools installed from a copied checkout, stage the build backend too (`pip download setuptools wheel -d wheels\`, into the folder being copied) and install it first (`pip install --no-index --find-links wheels\ setuptools wheel`; `--no-build-isolation` needs the backend installed, not only staged), then install with `pip install --no-index --find-links wheels\ --no-build-isolation .` inside the checkout.
 - **Fully local runtime:** installed tools make no required network calls, this tool has none; it reads `sessions.db` and local stores only.
 
 ## Zscaler
