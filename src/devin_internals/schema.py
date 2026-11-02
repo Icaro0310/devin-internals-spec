@@ -12,12 +12,16 @@ from pathlib import Path
 from typing import Any
 
 MIN_SUPPORTED_SCHEMA = 15
-LATEST_KNOWN_SCHEMA = 18
+LATEST_KNOWN_SCHEMA = 20
 # Newest version whose *layout* was field-inspected (docs/SCHEMA.md).
-# v18 is registered as observed-drift — the ledger row exists in the
-# devin-dream D06 drift fixture — but no real v18 store was ever opened,
-# so ``verified`` stays pinned to 17 until fresh DDL evidence lands.
-VERIFIED_SCHEMA = 17
+# v18 was registered as observed-drift (the ledger row exists in the
+# devin-dream D06 drift fixture) without a real store ever being opened;
+# on 2026-11-02 a live v20 sessions.db was field-inspected: migrations
+# 18-20 are all additive — tool_call_state.source_node_ids (18),
+# message_search FTS5 (19), live_row_times (20) — and every column the
+# spec reads (sessions, message_nodes, prompt_history) is unchanged in
+# name and type, so ``verified`` advances to 20.
+VERIFIED_SCHEMA = 20
 
 SCHEMA_COMPAT_KEY = "schema_compat_version"
 
@@ -57,7 +61,7 @@ def detect_schema_version(db_path: str | Path) -> dict[str, Any]:
 
     ``verified`` reports whether the version matches the newest
     field-inspected layout (:data:`VERIFIED_SCHEMA`) — a version can be
-    known/supported without being verified (v18 is registered
+    known/supported without being verified (v18 was registered
     observed-drift, not an inspected DDL).
 
     Raises:

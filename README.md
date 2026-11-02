@@ -47,9 +47,9 @@ of silently misreading your data.
 
 Everything Devin stores on your disk is kept in undocumented SQLite databases
 whose schema **changes without notice**: `sessions.db` has already gone through
-**17 verified migrations** (v1–v15 on 2026-05-06, v16 on 2026-07-05, v17 on
-2026-09-14), plus a v18 ledger version registered from a drift artifact
-(docs/SCHEMA.md §4).
+**20 verified migrations** (v1–v15 on 2026-05-06, v16 on 2026-07-05, v17 on
+2026-09-14, v18–v20 on 2026-10-26 — live v20 store field-inspected;
+docs/SCHEMA.md §4).
 Any tool that reads these stores has to reverse-engineer the format — and when
 Cognition ships the next migration, those tools break *silently*: wrong counts,
 missed rows, or corrupted interpretation, with no error raised.
@@ -150,7 +150,7 @@ else:
 sessions_db = root / "cli" / "sessions.db"
 
 detect_schema_version(sessions_db)
-# {"schema_version": 17, "known": True, "min_supported": 15, ...}
+# {"schema_version": 20, "known": True, "min_supported": 15, ...}
 
 with SessionsStore(sessions_db) as store:
     store.sessions()  # typed dataclasses
@@ -322,8 +322,9 @@ hold auth tokens and PII. `--fail-on-flags` exits 1 for CI.
 - **Private, volatile internals.** These stores are implementation details of
   Devin; the schema can change in any release. Only what is marked "verified"
   in `docs/SPEC.md` should be relied on.
-- **Field-verified against schema v17** (the newest inspected layout; v18 is
-  registered as observed-drift — gated as known, layout unverified). The
+- **Field-verified against schema v20** (the newest inspected layout — a live
+  v20 store was field-inspected on 2026-10-26; migrations 18–20 are all
+  additive, docs/SCHEMA.md §4). The
   detector *refuses* versions it doesn't know — that's a feature, but it means
   new Devin releases will break detection until the spec is updated.
 - **Read-only.** This project never writes to Devin's databases.

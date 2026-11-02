@@ -1,10 +1,11 @@
 # SCHEMA.md — Devin local stores, field by field
 
-Reference for the three local stores. **Verified against schema v17**
-(`sessions.db` migration ledger) on 2026-09-29, Windows. **v18 is
-registered** (2026-10-25) as *observed-drift* — the version row exists
-in the devin-dream D06 drift fixture, but no live v18 DDL was ever
-inspected, so v17 remains the newest *verified* layout (§4). Unless marked
+Reference for the three local stores. **Verified against schema v20**
+(`sessions.db` migration ledger) — a live v20 store was field-inspected on
+2026-10-26: migrations 18–20 are all additive (`tool_call_state.source_node_ids`
+in 18, `message_search` FTS5 in 19, `live_row_times` in 20) and every column
+the spec reads is unchanged in name and type, so the v17 field map below
+still applies and v20 is the newest *verified* layout (§4). Unless marked
 otherwise, every field below was observed in the live DDL (`sqlite_master` +
 `PRAGMA table_info`) — *structure only; row content is never published*.
 
@@ -212,24 +213,26 @@ UTF-8 with `errors="replace"`. Individual `windsurfSpace.*` key names are
 
 ## 4. Known gaps (explicit)
 
-- **v18 DDL**: registered 2026-10-25 as *observed-drift*, provenance the
-  devin-dream D06 "Schema-drift canary" store vendored byte-verbatim at
-  `fixtures/schema-versions/sessions-v18.db` (also shipped packaged as
-  `devin_internals/corpus/schema-versions/`). There the 18th ledger row is
-  synthetic (`synthetic_migration_18`, `applied_on` 9999-12-31): the real
-  v18 migration name and DDL were never inspected, so the detector gates
-  v18 `known`/`supported` — "we know this version exists" — while
-  `verified` stays `False` (`VERIFIED_SCHEMA` remains 17). Fill in when a
-  live v18 store is available; `> 18` still raises
-  `UnknownSchemaVersionError` (`fixtures/schema-versions/sessions-v19.db`
-  pins that boundary).
-- **v15/v16 DDL**: only v17's DDL was inspected. The real migration list
-  (names/deltas) lives in `refinery_schema_history` *rows*, which are row
-  content and were not read. Fixtures therefore model **v17's layout
-  only** — the vendored v18/v19 stores (above) pin the ledger-marker
-  boundary, not DDL evidence; the `schema_version` knob fakes the marker,
-  not the layout. Documented gap, not a guess — fill in when old-DB
-  evidence is available.
+- **v18–v20 DDL**: a live v20 store was field-inspected on 2026-10-26 —
+  all three migrations are additive and none touches a column the spec
+  reads: 18 `tool_call_state_source_nodes` adds `tool_call_state.source_node_ids
+  TEXT`, 19 `add_message_search` adds `CREATE VIRTUAL TABLE message_search
+  USING fts5(content, content='', contentless_delete=1, tokenize='unicode61')`,
+  20 `live_row_times` adds `CREATE TABLE live_row_times (session_id TEXT NOT
+  NULL, row_key TEXT NOT NULL, started_at TEXT NOT NULL, PRIMARY KEY
+  (session_id, row_key))`. `VERIFIED_SCHEMA` is therefore 20; `> 20` still
+  raises `UnknownSchemaVersionError`. The vendored
+  `fixtures/schema-versions/sessions-v18.db` / `sessions-v19.db` (devin-dream
+  D06 drift canaries, synthetic ledger rows) now pin in-range detection —
+  `verified` reports `False` for both, since neither is the newest
+  inspected layout.
+- **v15/v16 DDL**: only v17's base DDL plus the additive v18–v20 deltas
+  were inspected. The real migration list (names/deltas) lives in
+  `refinery_schema_history` *rows*, which are row content and were not
+  read. Fixtures therefore model the v17 layout plus the inspected deltas —
+  for versions above the newest delta the `schema_version` knob still
+  fakes the ledger marker, not a layout. Documented gap, not a guess —
+  fill in when old-DB evidence is available.
 - **JSON/text payload columns** (`chat_message`, `metadata`, `cogs_json`,
   `workspace_dirs`, `tool_call_*_json`, `rendered_html`,
   `ItemTable.value` semantics): column exists (verified) but the inner format

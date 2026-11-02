@@ -20,7 +20,7 @@ SCHEMA_VERSIONS_CORPUS = (
 
 
 def test_detects_v18(tmp_path):
-    db = create_sessions_db(tmp_path / "sessions.db")
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=18)
 
     info = detect_schema_version(db)
 
@@ -28,11 +28,11 @@ def test_detects_v18(tmp_path):
     assert info["schema_compat_version"] == 18
     assert info["known"] is True
     assert info["supported"] is True
-    # v18 is registered observed-drift: gated as known, but no real v18
-    # DDL was inspected — verified stays pinned to the v17 layout.
+    # v18 is known but no longer the newest inspected layout (v20 is),
+    # so verified reports False for a v18 store.
     assert info["verified"] is False
     assert info["min_supported"] == 15
-    assert info["max_supported"] == 18
+    assert info["max_supported"] == 20
 
 
 def test_detects_committed_v18_fixture():
@@ -48,32 +48,55 @@ def test_detects_committed_v18_fixture():
     assert info["verified"] is False
 
 
-def test_committed_v19_fixture_still_fails_loudly():
-    """First version past the registered range keeps the canary honest."""
+def test_committed_v19_fixture_detects():
+    """v19 was the canary before the bump — now inside the known range."""
     db = SCHEMA_VERSIONS_CORPUS / "sessions-v19.db"
-
-    with pytest.raises(UnknownSchemaVersionError, match="version 19"):
-        detect_schema_version(db)
-
-
-def test_last_verified_layout_reports_verified(tmp_path):
-    db = create_sessions_db(tmp_path / "sessions.db", schema_version=17)
 
     info = detect_schema_version(db)
 
-    assert info["schema_version"] == 17
+    assert info["schema_version"] == 19
+    assert info["known"] is True
+    assert info["supported"] is True
+    assert info["verified"] is False
+
+
+def test_last_verified_layout_reports_verified(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=20)
+
+    info = detect_schema_version(db)
+
+    assert info["schema_version"] == 20
     assert info["known"] is True
     assert info["supported"] is True
     assert info["verified"] is True
+
+    # The generated store must carry the inspected v20 layout, not v17 DDL
+    # with a faked ledger marker (migrations 18-20 are all additive).
+    con = sqlite3.connect(db)
+    try:
+        tables = {
+            row[0]
+            for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        tool_call_cols = {
+            row[1] for row in con.execute("PRAGMA table_info(tool_call_state)")
+        }
+    finally:
+        con.close()
+    assert "source_node_ids" in tool_call_cols
+    assert "message_search" in tables
+    assert "live_row_times" in tables
 
 
 def test_accepts_str_path_and_tilde(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db")
     info = detect_schema_version(str(db))
-    assert info["schema_version"] == 18
+    assert info["schema_version"] == 20
 
 
-@pytest.mark.parametrize("version", [19, 99])
+@pytest.mark.parametrize("version", [21, 99])
 def test_unknown_version_fails_loudly(tmp_path, version):
     db = create_sessions_db(tmp_path / "sessions.db", schema_version=version)
 
