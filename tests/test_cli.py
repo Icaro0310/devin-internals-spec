@@ -24,7 +24,7 @@ def test_schema_prints_contract(tmp_path, capsys):
     assert out["schema_version"] == 18
     assert out["known"] is True
     assert out["min_supported"] == 15
-    assert out["max_supported"] == 18
+    assert out["max_supported"] == 20
 
 
 def test_schema_unknown_version_fails_loud(tmp_path, capsys):

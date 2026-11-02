@@ -28,11 +28,11 @@ def test_detects_v18(tmp_path):
     assert info["schema_compat_version"] == 18
     assert info["known"] is True
     assert info["supported"] is True
-    # v18 is registered observed-drift: gated as known, but no real v18
-    # DDL was inspected — verified stays pinned to the v17 layout.
+    # v18 is known but no longer the newest inspected layout (v20 is),
+    # so verified reports False for a v18 store.
     assert info["verified"] is False
     assert info["min_supported"] == 15
-    assert info["max_supported"] == 18
+    assert info["max_supported"] == 20
 
 
 def test_detects_committed_v18_fixture():
@@ -48,20 +48,24 @@ def test_detects_committed_v18_fixture():
     assert info["verified"] is False
 
 
-def test_committed_v19_fixture_still_fails_loudly():
-    """First version past the registered range keeps the canary honest."""
+def test_committed_v19_fixture_detects():
+    """v19 was the canary before the bump — now inside the known range."""
     db = SCHEMA_VERSIONS_CORPUS / "sessions-v19.db"
-
-    with pytest.raises(UnknownSchemaVersionError, match="version 19"):
-        detect_schema_version(db)
-
-
-def test_last_verified_layout_reports_verified(tmp_path):
-    db = create_sessions_db(tmp_path / "sessions.db", schema_version=17)
 
     info = detect_schema_version(db)
 
-    assert info["schema_version"] == 17
+    assert info["schema_version"] == 19
+    assert info["known"] is True
+    assert info["supported"] is True
+    assert info["verified"] is False
+
+
+def test_last_verified_layout_reports_verified(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=20)
+
+    info = detect_schema_version(db)
+
+    assert info["schema_version"] == 20
     assert info["known"] is True
     assert info["supported"] is True
     assert info["verified"] is True
@@ -73,7 +77,7 @@ def test_accepts_str_path_and_tilde(tmp_path):
     assert info["schema_version"] == 18
 
 
-@pytest.mark.parametrize("version", [19, 99])
+@pytest.mark.parametrize("version", [21, 99])
 def test_unknown_version_fails_loudly(tmp_path, version):
     db = create_sessions_db(tmp_path / "sessions.db", schema_version=version)
 
