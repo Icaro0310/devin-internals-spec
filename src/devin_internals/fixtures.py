@@ -19,16 +19,21 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
-LATEST_KNOWN_SCHEMA = 18
+LATEST_KNOWN_SCHEMA = 20
 MIN_SUPPORTED_SCHEMA = 15
 DEFAULT_SEED = 0xD317
 
 # Dates the real migrations landed (docs/SPEC.pt-BR.md §1 — public timeline,
-# not row content). Versions above 17 get an obviously synthetic date.
+# not row content; 18-20 observed in the live v20 store's ledger,
+# field-inspected 2026-10-26). Versions without an observed date get an
+# obviously synthetic one.
 _MIGRATION_APPLIED_ON = {
     **{v: "2026-05-06" for v in range(1, 16)},
     16: "2026-07-05",
     17: "2026-09-14",
+    18: "2026-10-26",
+    19: "2026-10-26",
+    20: "2026-10-26",
 }
 _FUTURE_MIGRATION_DATE = "9999-12-31"
 
@@ -120,6 +125,26 @@ CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB);
 PRAGMA user_version = 1;
 """
 
+# Additive migration deltas copied from the live v20 store's ``sqlite_master``
+# (field-inspected 2026-10-26). ``create_sessions_db`` applies them in order
+# for every target version >= the delta's version, so generated stores carry
+# the real inspected layout instead of v17 DDL with a faked ledger marker.
+_SESSIONS_DB_DELTAS = {
+    18: "ALTER TABLE tool_call_state ADD COLUMN source_node_ids TEXT;",
+    19: """CREATE VIRTUAL TABLE message_search USING fts5(
+  content,
+  content = '',
+  contentless_delete = 1,
+  tokenize = 'unicode61'
+);""",
+    20: """CREATE TABLE live_row_times (
+    session_id  TEXT NOT NULL,
+    row_key     TEXT NOT NULL,
+    started_at  TEXT NOT NULL,
+    PRIMARY KEY (session_id, row_key)
+);""",
+}
+
 
 def _checksum(seed: int, version: int) -> str:
     return hashlib.sha256(f"fixture:{seed}:{version}".encode()).hexdigest()
@@ -139,9 +164,12 @@ def create_sessions_db(
 ) -> Path:
     """Create a synthetic ``sessions.db`` at ``path``.
 
-    The layout is always the real v17 DDL; ``schema_version`` only controls the
-    rows written to ``refinery_schema_history``/``app_state`` (use > 18 to
-    exercise the unknown-version path of the detector).
+    The layout is the real v17 DDL plus the additive deltas of
+    ``_SESSIONS_DB_DELTAS`` for every version >= the delta's version, so a
+    ``schema_version=20`` store carries the inspected v20 layout. Values
+    above :data:`LATEST_KNOWN_SCHEMA` only control the rows written to
+    ``refinery_schema_history``/``app_state`` (use them to exercise the
+    unknown-version path of the detector).
     """
     if schema_version < 1:
         raise ValueError("schema_version must be >= 1")
@@ -154,6 +182,8 @@ def create_sessions_db(
     con = sqlite3.connect(path)
     with con:
         con.executescript(SESSIONS_DB_DDL_V17)
+        for v in range(18, min(schema_version, LATEST_KNOWN_SCHEMA) + 1):
+            con.executescript(_SESSIONS_DB_DELTAS[v])
         for v in range(1, schema_version + 1):
             con.execute(
                 "INSERT INTO refinery_schema_history(version, name, applied_on, checksum)"

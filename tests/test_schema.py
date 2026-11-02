@@ -20,7 +20,7 @@ SCHEMA_VERSIONS_CORPUS = (
 
 
 def test_detects_v18(tmp_path):
-    db = create_sessions_db(tmp_path / "sessions.db")
+    db = create_sessions_db(tmp_path / "sessions.db", schema_version=18)
 
     info = detect_schema_version(db)
 
@@ -70,11 +70,30 @@ def test_last_verified_layout_reports_verified(tmp_path):
     assert info["supported"] is True
     assert info["verified"] is True
 
+    # The generated store must carry the inspected v20 layout, not v17 DDL
+    # with a faked ledger marker (migrations 18-20 are all additive).
+    con = sqlite3.connect(db)
+    try:
+        tables = {
+            row[0]
+            for row in con.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            )
+        }
+        tool_call_cols = {
+            row[1] for row in con.execute("PRAGMA table_info(tool_call_state)")
+        }
+    finally:
+        con.close()
+    assert "source_node_ids" in tool_call_cols
+    assert "message_search" in tables
+    assert "live_row_times" in tables
+
 
 def test_accepts_str_path_and_tilde(tmp_path):
     db = create_sessions_db(tmp_path / "sessions.db")
     info = detect_schema_version(str(db))
-    assert info["schema_version"] == 18
+    assert info["schema_version"] == 20
 
 
 @pytest.mark.parametrize("version", [21, 99])

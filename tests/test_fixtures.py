@@ -65,6 +65,33 @@ def test_sessions_db_fixture_opens_and_is_populated(tmp_path):
         con.close()
 
 
+def _tool_call_cols(db_path) -> set[str]:
+    con = sqlite3.connect(db_path)
+    try:
+        return {row[1] for row in con.execute("PRAGMA table_info(tool_call_state)")}
+    finally:
+        con.close()
+
+
+def test_sessions_db_version_deltas_match_inspected_layout(tmp_path):
+    """Generated stores apply the additive v18-v20 deltas per version."""
+    db17 = create_sessions_db(tmp_path / "v17.db", schema_version=17)
+    db19 = create_sessions_db(tmp_path / "v19.db", schema_version=19)
+    db20 = create_sessions_db(tmp_path / "v20.db", schema_version=20)
+
+    assert "source_node_ids" not in _tool_call_cols(db17)
+    assert "message_search" not in _tables(db17)
+    assert "live_row_times" not in _tables(db17)
+
+    assert "source_node_ids" in _tool_call_cols(db19)
+    assert "message_search" in _tables(db19)
+    assert "live_row_times" not in _tables(db19)
+
+    assert "source_node_ids" in _tool_call_cols(db20)
+    assert "message_search" in _tables(db20)
+    assert "live_row_times" in _tables(db20)
+
+
 def test_acp_messages_fixture_opens(tmp_path):
     db = create_acp_messages_db(tmp_path / "acp.db")
 

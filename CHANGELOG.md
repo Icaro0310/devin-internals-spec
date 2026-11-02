@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Schema gate bumped to **v20** (`LATEST_KNOWN_SCHEMA` / `VERIFIED_SCHEMA`)
+  after a live v20 `sessions.db` was field-inspected: migrations 18–20 are
+  additive (`tool_call_state.source_node_ids`, `message_search` FTS5,
+  `live_row_times`); `verified` now reports at 20 and versions above still
+  refuse loudly.
+- `fixtures.create_sessions_db` now emits the inspected layout per target
+  version — base v17 DDL plus the additive v18–v20 deltas — instead of
+  always generating v17 DDL; `fixtures.LATEST_KNOWN_SCHEMA` follows the
+  detector (18 → 20) so `make-fixture` and generated healthy install states
+  default to v20.
+- README Limitations/usage and docs/SCHEMA.md updated to the v20
+  field-inspection (previously pinned to v17 observed-drift).
+
 ## [0.3.3] - 2026-10-28
 
 ### Added
