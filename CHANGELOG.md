@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `pypi-publish.yml` verifier pin updated (Twine 6.1.0 → 7.0.0 +
+  packaging pin via reusable verify-wheel-version); publish gate
+  unchanged (Dependabot PR #72).
 - Schema gate bumped to **v20** (`LATEST_KNOWN_SCHEMA` / `VERIFIED_SCHEMA`)
   after a live v20 `sessions.db` was field-inspected: migrations 18–20 are
   additive (`tool_call_state.source_node_ids`, `message_search` FTS5,
