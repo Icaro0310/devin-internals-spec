@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default to v20.
 - README Limitations/usage and docs/SCHEMA.md updated to the v20
   field-inspection (previously pinned to v17 observed-drift).
+- `pr-approve` caller repinned from v1.12 to **v1.14** in
+  `auto-approve.yml` with `contents: write` granted at workflow and job
+  level: since v1.13 the gate arms `gh pr merge --auto` after approval,
+  which needs write on the caller job (the reusable workflow's grant is
+  capped by the caller); approved PRs now auto-merge once required
+  checks pass instead of waiting for a human merge click.
+  `tests/test_auto_approve_gate.py` pins the caller contract.
 
 ### Added
 
