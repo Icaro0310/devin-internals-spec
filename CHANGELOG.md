@@ -32,7 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `auto-approve.yml`: the reusable now runs the auto-merge arm in a
   dedicated `arm-auto-merge` job so the approve path holds read-only
   permissions again; `contents: write` stays on the caller job for
-  the arm (the reusable's grant is capped by the caller).
+  the arm (the reusable's grant is capped by the caller). The caller
+  also grants `statuses: read` at workflow and job level — required
+  since v1.15 for the reusable's status reads; a caller that omits it
+  is rejected as a silent `startup_failure`.
   `tests/test_auto_approve_gate.py` pins the caller contract.
 
 ### Added
