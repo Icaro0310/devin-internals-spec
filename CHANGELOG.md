@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   capped by the caller); approved PRs now auto-merge once required
   checks pass instead of waiting for a human merge click.
   `tests/test_auto_approve_gate.py` pins the caller contract.
+- `pr-approve` caller repinned from v1.14 to **v1.16** in
+  `auto-approve.yml`: the reusable now runs the auto-merge arm in a
+  dedicated `arm-auto-merge` job so the approve path holds read-only
+  permissions again; `contents: write` stays on the caller job for
+  the arm (the reusable's grant is capped by the caller).
+  `tests/test_auto_approve_gate.py` pins the caller contract.
 
 ### Added
 
