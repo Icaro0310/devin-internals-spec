@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-11-11
+
 ### Changed
 
 - Schema gate bumped to **v20** (`LATEST_KNOWN_SCHEMA` / `VERIFIED_SCHEMA`)
