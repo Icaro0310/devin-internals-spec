@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `test_live_stores_verify` (live acp-messages e2e) no longer fails on
+  non-store `*.db` files: the live directory can hold orphan/partial DBs
+  that were created but never initialised (zero tables). New
+  `message_schemas.is_acp_store()` probe gates store discovery — the live
+  test and the `verify <dir>` CLI skip non-stores (surfaced as
+  `skipped_non_store`), while pointed `verify_db` on a single file keeps
+  its fail-loud contract.
+- `tool_call` corpus fixture (v6): `content._meta.cognition.ai/
+  inferenceToolName` demoted `always` → `sometimes` — live stores show
+  hook-execution tool_calls (carrying `cognition.ai/hookId`, `executionId`,
+  `phase`, `command`, `durationMs`, `exitCode`, `output`, `showOutput`,
+  `decision`, `error`, `errorKind` — now declared `sometimes`/`verified`)
+  that legitimately lack `inferenceToolName` and `content.kind`.
+
 ## [0.3.4] - 2026-11-11
 
 ### Changed

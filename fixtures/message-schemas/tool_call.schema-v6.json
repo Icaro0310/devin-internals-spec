@@ -121,7 +121,8 @@
       "note": "cognition.ai/* namespace — open; declared children asserted, others tolerated"
     },
     "content._meta[\"cognition.ai/inferenceToolName\"]": {
-      "types": ["str"], "presence": "always", "status": "verified"
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "absent on hook-execution tool_calls (the cognition.ai/hookId payload family) — demoted from 'always' 2026-11-12 after live evidence"
     },
     "content._meta[\"cognition.ai/timestamp\"]": {
       "types": ["str"], "presence": "sometimes", "status": "verified",
@@ -183,10 +184,55 @@
     "content._meta[\"cognition.ai/answers\"]": {
       "types": ["list"], "presence": "sometimes", "status": "verified",
       "open": true
+    },
+    "content._meta[\"cognition.ai/hookId\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls (not inference calls)"
+    },
+    "content._meta[\"cognition.ai/executionId\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/phase\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/command\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/durationMs\"]": {
+      "types": ["int"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/exitCode\"]": {
+      "types": ["int"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/output\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/showOutput\"]": {
+      "types": ["bool"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/decision\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/error\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
+    },
+    "content._meta[\"cognition.ai/errorKind\"]": {
+      "types": ["str"], "presence": "sometimes", "status": "verified",
+      "note": "hook-execution tool_calls"
     }
   },
   "notes": [
     "content.content[] items are the ACP ToolCallContent union — 'terminal' is the only documented variant never observed.",
-    "content.rawInput children are the per-tool argument space (open) — new tool arguments are not contradictions."
+    "content.rawInput children are the per-tool argument space (open) — new tool arguments are not contradictions.",
+    "content._meta hook-execution variant (observed 2026-11-12 on 89 rows across 4 live stores): tool_call rows produced by shell hooks carry hookId/executionId/phase/command/durationMs/exitCode/showOutput (+output/decision/error/errorKind) instead of inferenceToolName, and no content.kind."
   ]
 }

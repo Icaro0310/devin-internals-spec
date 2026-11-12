@@ -24,8 +24,10 @@ from devin_internals.message_schemas import (
     CORPUS_NAME,
     FixtureError,
     extract_shape,
+    is_acp_store,
     load_corpus,
     load_fixture,
+    main,
     verify_db,
     verify_payload,
 )
@@ -595,6 +597,79 @@ def test_extract_shape_reports_paths_types_not_values():
 
 
 # ---------------------------------------------------------------------------
+# is_acp_store — store discovery probe for directory scans
+# ---------------------------------------------------------------------------
+
+
+def _make_zero_table_db(path: Path) -> Path:
+    """A valid SQLite file that was never initialised — the orphan/partial
+    shape seen live in acp-messages dirs."""
+    con = sqlite3.connect(path)
+    con.close()
+    return path
+
+
+def test_is_acp_store_true_on_fixture(tmp_path):
+    db = create_acp_messages_db(tmp_path / "acp.db")
+    assert is_acp_store(db)
+
+
+def test_is_acp_store_false_on_zero_table_db(tmp_path):
+    db = _make_zero_table_db(tmp_path / "orphan.db")
+    assert not is_acp_store(db)
+
+
+def test_is_acp_store_false_on_wrong_store(tmp_path):
+    db = create_sessions_db(tmp_path / "sessions.db")
+    assert not is_acp_store(db)
+
+
+def test_is_acp_store_false_on_corrupt_and_missing(tmp_path):
+    bad = tmp_path / "bad.db"
+    bad.write_bytes(b"not sqlite" * 10)
+    assert not is_acp_store(bad)
+    assert not is_acp_store(tmp_path / "ghost.db")
+
+
+def test_verify_db_still_fails_loud_on_pointed_non_store(tmp_path, corpus):
+    """is_acp_store only gates *discovery* — pointed verification must keep
+    the fail-loud contract for a file that is not a store."""
+    db = _make_zero_table_db(tmp_path / "orphan.db")
+    report = verify_db(db, corpus)
+    assert not report.ok
+    assert any("missing tables" in c for c in report.contradictions)
+
+
+def test_cmd_verify_dir_skips_non_store_files(tmp_path, corpus, capsys):
+    real = create_acp_messages_db(tmp_path / "acp.db")
+    _make_zero_table_db(tmp_path / "orphan.db")
+    (tmp_path / "junk.db").write_bytes(b"not sqlite" * 10)
+
+    rc = main(["verify", str(tmp_path)])
+    out = json.loads(capsys.readouterr().out)
+
+    assert rc == 0
+    assert out["ok"] is True
+    assert [r["db"] for r in out["reports"]] == [str(real)]
+    assert set(out["skipped_non_store"]) == {"orphan.db", "junk.db"}
+
+
+def test_cmd_verify_dir_with_no_stores_rc2(tmp_path, capsys):
+    _make_zero_table_db(tmp_path / "orphan.db")
+    rc = main(["verify", str(tmp_path)])
+    assert rc == 2
+    capsys.readouterr()
+
+
+def test_cmd_verify_single_non_store_file_fails_loud(tmp_path, capsys):
+    db = _make_zero_table_db(tmp_path / "orphan.db")
+    rc = main(["verify", str(db)])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert out["ok"] is False
+
+
+# ---------------------------------------------------------------------------
 # Live stores (best-effort, skipped off-machine)
 # ---------------------------------------------------------------------------
 
@@ -603,9 +678,17 @@ def test_extract_shape_reports_paths_types_not_values():
     not LIVE_ACP_DIR.is_dir() or not list(LIVE_ACP_DIR.glob("*.db")),
     reason="no live acp-messages stores on this machine")
 def test_live_stores_verify(corpus):
-    """The corpus was built from real captures — live stores must agree."""
-    reports = [
-        verify_db(db, corpus) for db in sorted(LIVE_ACP_DIR.glob("*.db"))
+    """The corpus was built from real captures — live stores must agree.
+
+    The live directory can hold ``*.db`` files that are not stores
+    (orphan/partial files never initialised, unrelated DBs). Those are
+    unverifiable — skipped via :func:`is_acp_store`, never verified.
+    """
+    stores = [
+        db for db in sorted(LIVE_ACP_DIR.glob("*.db")) if is_acp_store(db)
     ]
+    if not stores:
+        pytest.skip("only non-store *.db files in live acp-messages dir")
+    reports = [verify_db(db, corpus) for db in stores]
     failed = [r for r in reports if not r.ok]
     assert not failed, {r.db: r.contradictions for r in failed}
