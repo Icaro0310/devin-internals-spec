@@ -698,6 +698,34 @@ def _connect_readonly(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
 
 
+def is_acp_store(path: str | Path) -> bool:
+    """True iff *path* opens as SQLite and has the ``meta`` + ``messages``
+    tables — i.e. it is actually an acp-messages store.
+
+    The live ``acp-messages/`` directory can hold ``*.db`` files that are not
+    stores (orphan/partial files never initialised, or unrelated DBs dropped
+    in the same dir). Those are *unverifiable*, not contradictory: callers
+    scanning a directory should probe with this first and skip non-stores.
+    Pointed verification of a single file stays fail-loud via ``verify_db``.
+    """
+    try:
+        con = _connect_readonly(Path(path).expanduser())
+    except sqlite3.Error:
+        return False
+    try:
+        tables = {
+            r[0]
+            for r in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        }
+        return {"meta", "messages"} <= tables
+    except sqlite3.Error:
+        return False
+    finally:
+        con.close()
+
+
 def verify_db(
     db_path: str | Path,
     corpus: MessageSchemaCorpus | None = None,
@@ -894,9 +922,17 @@ def extract_shape(payloads: Iterable[Any]) -> dict[str, dict[str, Any]]:
 def _cmd_verify(args: argparse.Namespace) -> int:
     corpus = load_corpus()
     target = Path(args.path).expanduser()
-    dbs = [target] if target.is_file() else sorted(target.glob("*.db"))
+    skipped: list[str] = []
+    if target.is_file():
+        dbs = [target]
+    else:
+        # dir scan: stray non-store *.db files (orphan/partial stores, other
+        # apps' DBs) are unverifiable — skip them, never fail on them
+        candidates = sorted(target.glob("*.db"))
+        dbs = [db for db in candidates if is_acp_store(db)]
+        skipped = [db.name for db in candidates if db not in dbs]
     if not dbs:
-        print(f"{target}: no *.db stores found")
+        print(f"{target}: no acp-messages stores found")
         return 2
     reports = [
         verify_db(db, corpus, max_rows_per_kind=args.max_rows_per_kind)
@@ -908,6 +944,8 @@ def _cmd_verify(args: argparse.Namespace) -> int:
         "ok": all(r.ok for r in reports),
         "reports": [r.to_dict() for r in reports],
     }
+    if skipped:
+        out["skipped_non_store"] = skipped
     print(json.dumps(out, indent=2))
     return 0 if out["ok"] else 1
 
