@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g. the devin-assure evals corpus on the 0.3.4 bump) surfaces as
   a violation within 24h.
 
+### Changed
+
+- `.github/workflows/auto-approve.yml` repins the
+  `pr-approve` caller to `devin-powerups` `@v1.17` (was v1.16);
+  `tests/test_auto_approve_gate.py` now pins and documents the
+  v1.17 contract.
+
 ### Fixed
 
 
