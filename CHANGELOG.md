@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `heartbeat.js` CLI guard compares real paths: an invocation through a
+  symlinked path (the scout's `worktrees/` alias) used to exit 0 without
+  running the command or recording a beat.
 
 - `test_live_stores_verify` (live acp-messages e2e) no longer fails on
   non-store `*.db` files: the live directory can hold orphan/partial DBs
