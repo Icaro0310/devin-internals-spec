@@ -345,6 +345,31 @@ def test_js_emit_and_run(ledger: Path) -> None:
 
 
 @pytest.mark.skipif(NODE is None, reason="node not installed")
+def test_js_cli_runs_through_symlinked_path(ledger: Path, tmp_path: Path) -> None:
+    # the scout reaches the repo through a symlinked worktree path
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(HEARTBEAT_JS.parents[2], target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    run = subprocess.run(
+        [
+            NODE,
+            str(link / "src" / "devin_internals" / "heartbeat.js"),
+            "run",
+            "js-run",
+            "--",
+            NODE,
+            "-e",
+            "process.exit(4)",
+        ],
+        check=False, env=dict(os.environ),
+    )
+    assert run.returncode == 4
+    assert read_heartbeats(ledger)["js-run"]["last_detail"].startswith("rc=4")
+
+
+@pytest.mark.skipif(NODE is None, reason="node not installed")
 def test_js_module_smoke(ledger: Path) -> None:
     # import + API surface via node -e (ESM); the ``ledger`` fixture's env
     # points the node's readHeartbeats() at the same tmp file

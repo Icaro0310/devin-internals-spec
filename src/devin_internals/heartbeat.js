@@ -28,7 +28,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { constants, homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -240,10 +240,13 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 // CLI block: only when executed directly (`node heartbeat.js ...`),
-// not when imported as a module.
-const invokedAs = process.argv[1]
-  ? pathToFileURL(resolve(process.argv[1])).href
-  : "";
+// not when imported as a module. Real paths, so a symlinked path still runs it.
+let invokedAs = "";
+try {
+  invokedAs = pathToFileURL(realpathSync(process.argv[1])).href;
+} catch {
+  // no script path (node -e, module import): never the CLI
+}
 if (import.meta.url === invokedAs) {
   try {
     process.exitCode = main();
