@@ -345,7 +345,10 @@ def test_js_emit_and_run(ledger: Path) -> None:
 
 
 @pytest.mark.skipif(NODE is None, reason="node not installed")
-def test_js_cli_runs_through_symlinked_path(ledger: Path, tmp_path: Path) -> None:
+@pytest.mark.parametrize("node_flags", [[], ["--preserve-symlinks-main"]])
+def test_js_cli_runs_through_symlinked_path(
+    ledger: Path, tmp_path: Path, node_flags: list[str]
+) -> None:
     # the scout reaches the repo through a symlinked worktree path
     link = tmp_path / "link"
     try:
@@ -355,6 +358,7 @@ def test_js_cli_runs_through_symlinked_path(ledger: Path, tmp_path: Path) -> Non
     run = subprocess.run(
         [
             NODE,
+            *node_flags,
             str(link / "src" / "devin_internals" / "heartbeat.js"),
             "run",
             "js-run",
