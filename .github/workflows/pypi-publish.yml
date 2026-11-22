@@ -17,7 +17,7 @@ permissions:
 jobs:
   # Wheel __version__ gate lives in one place — verified before publish runs.
   verify:
-    uses: Icaro0310/devin-powerups/.github/workflows/verify-wheel-version.yml@6ca8c4b2df7f36db125ad5c1bbee072d57ec7c80 # v1
+    uses: Icaro0310/devin-powerups/.github/workflows/verify-wheel-version.yml@5fba59dcecd15a4eca68205b52df821466d3731e # v1
     with:
       package-dir: .
       module: devin_internals
